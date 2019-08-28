@@ -1,0 +1,246 @@
+#!/bin/sh -e
+#
+# https://rgz.ee/bin/ssg5
+# Copyright 2018-2019 Roman Zolotarev <hi@romanzolotarev.com>
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+
+main() {
+	[ -z "$4" ] && usage
+ 	test -d "$1" || no_dir "$1"
+ 	test -d "$2" || no_dir "$2"
+
+	src=$(readlink_f "$1")
+	dst=$(readlink_f "$2")
+	site_title="$3"
+	base_url="$4"
+
+	IGNORE=$(
+		if ! test -f "$src/.ssgignore"
+		then
+			printf ' ! -path "*/.*"'
+			return
+		fi
+		while read -r x
+		do
+			test -n "$x" || continue
+			printf ' ! -path "*/%s*"' "$x"
+		done < "$src/.ssgignore"
+	)
+    [ -z "$HEADER" ] && export HEADER="$src/_header.html"
+    [ -z "$FOOTER" ] && export FOOTER="$src/_footer.html"
+	list_dirs "$src" | (cd "$src" && cpio -pduL "$dst")
+	fs=$(
+		if [ -f "$dst/.files" ]; then
+			list_affected_files "$src" "$dst/.files"
+		else 
+			list_files "$1"
+		fi
+	)
+	if [ -n "$fs" ]; then
+		echo "$fs" | tee "$dst/.files"
+		echo "$fs" | grep -iE '\.md$|\.html$' | 
+			render_files "$src" "$dst" "$site_title" "$base_url"
+		echo "$fs" | grep -iEv '\.md$|\.html$' |
+			(cd "$src" && cpio -puL "$dst")
+	fi
+	printf '[ssg] ' >&2
+	print_status 'file, ' 'files, ' "$fs" >&2
+
+	# sitemap
+	date=$(date +%Y-%m-%d)
+ 	urls=$(list_pages "$src")
+	test -n "$urls" &&
+	render_sitemap "$urls" "$base_url" "$date" > "$dst/sitemap.xml"
+
+	print_status 'url' 'urls' "$urls" >&2
+	echo >&2
+}
+
+
+readlink_f() {
+	file="$1"
+	cd "$(dirname "$file")"
+	file=$(basename "$file")
+	while test -L "$file"
+	do
+		file=$(readlink "$file")
+		cd "$(dirname "$file")"
+		file=$(basename "$file")
+	done
+	dir=$(pwd -P)
+	echo "$dir/$file"
+}
+
+print_status() {
+	test -z "$3" && printf 'no %s' "$2" && return
+
+	echo "$3" | awk -v singular="$1" -v plural="$2" '
+	END {
+		if (NR==1) printf NR " " singular
+		if (NR>1) printf NR " " plural
+	}'
+}
+
+usage() {
+	echo "usage: ${0##*/} src dst title base_url" >&2
+	exit 1
+}
+
+no_dir() {
+	echo "${0##*/}: $1: No such directory" >&2
+	exit 2
+}
+
+list_dirs() {
+	cd "$1" && eval "find . -type d ! -name '.' ! -path '*/_*' $IGNORE"
+}
+
+list_files() {
+	cd "$1" && eval "find -L . -type f ! -name '.' ! -path '*/_*' $IGNORE"
+}
+
+list_dependant_files () {
+ 	e="\\( -name '*.html' -o -name '*.md' -o -name '*.css' -o -name '*.js' \\)"
+	cd "$1" && eval "find -L . -type f ! -name '.' ! -path '*/_*' $IGNORE $e"
+}
+
+list_newer_files() {
+	cd "$1" && eval "find -L . -type f ! -name '.' $IGNORE -newer $2"
+}
+
+
+has_partials() {
+	grep -qE '^./_.*\.html$|^./_.*\.js$|^./_.*\.css$'
+}
+
+
+list_affected_files() {
+	fs=$(list_newer_files "$1" "$2")
+
+	if echo "$fs" | has_partials
+	then list_dependant_files "$1"
+	else echo "$fs"
+	fi
+}
+
+check_and_set_page_var() {
+	var=$1
+	value=$2
+	if [ -n "$var" ] && [ -n "$value" ]; then
+		sed 's#\$'"$var"'#'"$value"'#g; /#'"$var"'/d'
+	else
+		sed '/#'"$var"'/,/\/#'"$var"'/d'
+	fi
+}
+
+extract_metadata() {
+	name="$1"
+	input_file="$2"
+	sed -n '1,/^[[:space:]]*$/s/^'"$name"':[[:space:]]*//ip' $input_file
+}
+
+render_files() {
+    site_title="$3"
+    base_url="$4"
+
+#   filefull=$(basename -- "$1")
+#   filename="${filefull%.*}"
+	while read -r f; do
+		echo "Processing: $f"
+        # Create a separate dir/index.html for each md document except those exclusively named index.md
+		echo "$f" | grep -q 'index\..*' \
+			&& page_url="${f%\index.*}/" || page_url="${f%\.*}/"
+		dst_file_dir="$2/$page_url"
+		[ -d "$dist_file_dir" ] || mkdir -p "$dst_file_dir"
+        dst_file="$dst_file_dir""index.html"
+        input_file="$1/$f"
+		
+		ext="${f##*.}"
+		if [ "$ext" = "md" ]; then
+			content_title=$(extract_metadata "title" "$input_file")
+			pagedate=$(extract_metadata "date" "$input_file")
+			canonical=$(extract_metadata "canonical" "$input_file")
+			mathjax=$(extract_metadata "mathjax" "$input_file")
+			# TODO: category read to populate page (if present)
+		fi
+		[ -n "$content_title" ] &&
+			pagetitle="$site_title - $content_title" ||
+			pagetitle="$site_title"
+		page_url=$(echo "$page_url" | sed 's#^\.##') # remove leading . in url
+		(
+			[ -f "$HEADER" ] && 
+				cat "$HEADER" |
+				sed -e 's#\$SITETITLE#'"$site_title"'#g' \
+					-e 's#\$PAGETITLE#'"$pagetitle"'#g'\
+					-e 's#\$SITEURL#'"$base_url"'#g'\
+					-e 's#\$PAGEURL#'"$page_url"'#g' |
+					check_and_set_page_var "CONTENT_TITLE" "$content_title" |
+					check_and_set_page_var "DATE" "$pagedate" |
+					check_and_set_page_var "FEED_RSS" "$FEED_RSS" |
+					check_and_set_page_var "FEED_ATOM" "$FEED_ATOM" |
+					check_and_set_page_var "CANONICAL" "$canonical" |
+					check_and_set_page_var "MATHJAX" "$mathjax"
+
+			if [ "$ext" = 'md' ]; then
+				if test -x "$(which lowdown 2> /dev/null)"; then
+					# If metadata section starts with a yaml-metadata '---', remove for lowdown compatibility
+					sed '1{/^---/d}' "$input_file" | 
+					lowdown -D html-skiphtml -d autolink
+				elif test -x "$(which Markdown.pl 2> /dev/null)"; then
+					cat "$input_file" | Markdown.pl
+				else
+					echo "couldn't find lowdown nor Markdown.pl"
+					exit 3
+				fi
+			elif [ "$ext" = 'html' ]; then
+				cat "$input_file"
+			fi
+			[ -f "$FOOTER" ] && cat "$FOOTER"
+		) | process_html "$site_title" "$base_url" > "$dst_file" 
+	done
+}
+
+process_html() {
+	site_title="$1"
+	base_url="$2"
+	# Inject site title if absent, and convert relative links to absolute
+	sed -re 's#(<title>)[[:space:]]*(<\/title>)#\1'"$site_title"'\2#i' \
+		-e 's#(href[[:space:]]*=[[:space:]]*")\/#\1'"$base_url"'\/#ig'
+}
+
+list_pages() {
+	e="\\( -name '*.html' -o -name '*.md' \\)"
+	cd "$1" && eval "find -L . -type f ! -path '*/.*' ! -path '*/_*' $IGNORE $e" |
+	sed 's#^./##;s#.md$#.html#;s#/index.html$#/#'
+}
+
+render_sitemap() {
+	urls="$1"
+	base_url="$2"
+	date="$3"
+
+	echo '<?xml version="1.0" encoding="UTF-8"?>'
+	echo '<urlset'
+	echo 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
+	echo 'xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9'
+	echo 'http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"'
+	echo 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+	echo "$urls" |
+	sed -E 's#^(.*)$#<url><loc>'"$base_url"'/\1</loc><lastmod>'\
+"$date"'</lastmod><priority>1.0</priority></url>#'
+	echo '</urlset>'
+}
+
+main "$@"
