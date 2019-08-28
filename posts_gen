@@ -1,20 +1,38 @@
 #!/bin/bash
-# Generate an archives file with markdown dated entries 
 
 sep="#"
 
+function gen_categories
+{
+	echo "<h2>Categories</h2>"
+	cats=$(sed '1d' "$1" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
+	while read -r _ cat; do
+		# TODO: convert to lowercase
+		echo "Generating $cat.html"
+		gen_archives "$1" "$cat" > "$cat.html"
+	done <<< "$cats"
+	# Output the main categories page
+	echo "Generating categories.html"
+	echo "$cats" | sort -r | 
+	awk '{count=$1; $1=""; print $0" ("count")"}' > "categories.html"
+}
+
+# Generate an archives file for all or specific category
+# $1: posts CSV
+# $2: (optional) category
 function gen_archives
 {
-	[ -z "$1" ] && echo "Must provide valid input" && exit 1
-
-	echo "<h2>Archives</h2>"
-	sed '1d' "$1" | awk -F "$sep" '{if ($1) print "<p>"$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a> | Category: "$5"</p>"}'
+	# TODO: category link in lowercase one-word format 
+	[ -z "$2" ] && echo "<h2>Archives</h2>" || echo "<h2>Category - $2</h2>"
+	sed '1d' "$1" | awk -F "$sep" -v cat="$2" \
+		'{if ($1 && (!cat || tolower($5) == tolower(cat)))\
+			{print "<p>"$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
+			if (!cat) print " | Category: "$5; print "</p>"}}'
 }
 
 function gen_index
 {
-	[ -z "$1" ] && echo "Must provide valid input" && exit 1
-
+	# TODO: category link in lowercase one-word format 
 	echo "<h2>All Articles</h2>"
 	sed '1d' "$1" | awk -F "$sep" '{if ($1) {print \
 "<article class=\"hentry\">\n\
@@ -30,8 +48,6 @@ function gen_index
 
 function gen_csv
 {
-	[ -z "$1" ] && echo "Must indicate valid directory" && exit 1
-
 	echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
 	cd "$1" && find . -iregex '.*\.md' -type f -exec awk -v sep="$sep" '
 	BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
@@ -51,15 +67,19 @@ function gen_csv
 function help
 {
 	echo "-c <dir path>: generate generic CSV"
-	echo "-a <csv>: generate archives file"
+	echo "-a <csv> [category]: generate archives file"
 	echo "-i <csv>: generate index file"
+	echo "-C <csv> : generate categories indeces"
 	echo "-h: this help"
 }
 
-while getopts "achi" o; do 
+[ -n "$1" ] && [ -z "$2" ] && echo "Must provide valid input" && exit 1
+
+while getopts "achiC" o; do 
     case "${o}" in
-        a) gen_archives "$2"; exit 0;;
+        a) gen_archives "$2" "$3"; exit 0;;
         c) gen_csv "$2"; exit 0;;
+        C) gen_categories "$2"; exit 0;;
         i) gen_index "$2"; exit 0;;
         h|*) help; exit 0;;
     esac 
