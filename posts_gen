@@ -1,0 +1,20 @@
+#!/bin/sh
+# Generate an archives file with markdown dated entries 
+
+[ -z "$1" ] && echo "Must indicate valid directory" && exit 1
+
+sep="#"
+echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
+cd "$1" && find . -iregex '.*\.md' -type f -exec awk -v sep="$sep" '
+BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
+    /^date:/{d=$2} 
+    /^modified:/{m=$2} 
+    /^title:/{t=$2} 
+    /^category:/{c=$2} 
+    /^summary:/{s=$2} 
+	/^\s*$/{nextfile}
+END {
+href=FILENAME;
+sub("\\.md$", "/", href);
+sub("^\\.", "", href); 
+print d sep m sep t sep href sep c sep s}' {} \; | sort -rn
