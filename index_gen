@@ -1,0 +1,14 @@
+#!/bin/sh
+# Generate an index file with markdown dated entries 
+
+[ -z "$1" ] && echo "Must indicate valid directory" && exit 1
+
+(echo "<h2>All Articles</h2>"
+cd "$1" && find . -iregex '.*\.md' -type f -exec awk '
+BEGIN{ IGNORECASE=1; FS=":[[:space:]]*"} /^date:/{d=$2} /^title:/{t=$2} /^category:/{c=$2} END {if (d) {print \
+    "<article class=\"hentry\">\n\
+        <header><h2 class=\"entry-title\"><a href=\""FILENAME"\" title=\""d"\">"t"</a></h2></header>\n\
+        <footer class=\"post-info\">\n\
+            <time class=\"published\" datetime=\""d"\">"d"</time>"; if (c) print "| Category: "c; print "</footer>\n\
+</article>\n"}}' {} \; | 
+sed -r 's/(href=")\.(.*)\.md/\1\2\//i') > "$1/index.html"
