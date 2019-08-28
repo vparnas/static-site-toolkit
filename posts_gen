@@ -1,20 +1,68 @@
-#!/bin/sh
+#!/bin/bash
 # Generate an archives file with markdown dated entries 
 
-[ -z "$1" ] && echo "Must indicate valid directory" && exit 1
-
 sep="#"
-echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
-cd "$1" && find . -iregex '.*\.md' -type f -exec awk -v sep="$sep" '
-BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
-    /^date:/{d=$2} 
-    /^modified:/{m=$2} 
-    /^title:/{t=$2} 
-    /^category:/{c=$2} 
-    /^summary:/{s=$2} 
-	/^\s*$/{nextfile}
-END {
-href=FILENAME;
-sub("\\.md$", "/", href);
-sub("^\\.", "", href); 
-print d sep m sep t sep href sep c sep s}' {} \; | sort -rn
+
+function gen_archives
+{
+	[ -z "$1" ] && echo "Must provide valid input" && exit 1
+
+	echo "<h2>Archives</h2>"
+	sed '1d' "$1" | awk -F "$sep" '{if ($1) print "<p>"$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a> | Category: "$5"</p>"}'
+}
+
+function gen_index
+{
+	[ -z "$1" ] && echo "Must provide valid input" && exit 1
+
+	echo "<h2>All Articles</h2>"
+	sed '1d' "$1" | awk -F "$sep" '{if ($1) {print \
+"<article class=\"hentry\">\n\
+	<header><h2 class=\"entry-title\">\n\
+		<a href=\""$4"\" title=\""$3"\">"$3"</a></h2>\n\
+	</header>\n\
+	<footer class=\"post-info\">\n\
+		<time class=\"published\" datetime=\""$1"\">"$1"</time>"; \
+	if ($5) print "\
+		| Category: "$5; print "\
+	</footer>\n</article>\n"}}'
+}
+
+function gen_csv
+{
+	[ -z "$1" ] && echo "Must indicate valid directory" && exit 1
+
+	echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
+	cd "$1" && find . -iregex '.*\.md' -type f -exec awk -v sep="$sep" '
+	BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
+		/^date:/{d=$2} 
+		/^modified:/{m=$2} 
+		/^title:/{t=$2} 
+		/^category:/{c=$2} 
+		/^summary:/{s=$2} 
+		/^\s*$/{nextfile}
+	END {
+	href=FILENAME;
+	sub("\\.md$", "/", href);
+	sub("^\\.", "", href); 
+	print d sep m sep t sep href sep c sep s}' {} \; | sort -rn
+}
+
+function help
+{
+	echo "-c <dir path>: generate generic CSV"
+	echo "-a <csv>: generate archives file"
+	echo "-i <csv>: generate index file"
+	echo "-h: this help"
+}
+
+while getopts "achi" o; do 
+    case "${o}" in
+        a) gen_archives "$2"; exit 0;;
+        c) gen_csv "$2"; exit 0;;
+        i) gen_index "$2"; exit 0;;
+        h|*) help; exit 0;;
+    esac 
+done
+
+help
