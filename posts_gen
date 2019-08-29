@@ -2,19 +2,26 @@
 
 sep="#"
 
+function name_linkify
+{
+	echo "$1" | awk '{print gensub("[[:space:]]", "-", "g", tolower($0))}'
+}
+
+# TODO: configurable to select the category html name format (include extension in link?)
 function gen_categories
 {
-	echo "<h2>Categories</h2>"
-	cats=$(sed '1d' "$1" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
-	while read -r _ cat; do
-		# TODO: convert to lowercase
-		echo "Generating $cat.html"
-		gen_archives "$1" "$cat" > "$cat.html"
-	done <<< "$cats"
-	# Output the main categories page
-	echo "Generating categories.html"
-	echo "$cats" | sort -r | 
-	awk '{count=$1; $1=""; print $0" ("count")"}' > "categories.html"
+	main_html="categories.html"
+
+	echo -e "<h2>Categories</h2>\n<ul>" > "$main_html"
+	cats_counts=$(sed '1d' "$1" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
+	while read -r count cat; do
+		fname=$(name_linkify "$cat")
+		echo "Generating $fname.html"
+		gen_archives "$1" "$cat" > "$fname.html"
+		echo "<li><a href='/$fname/'>$cat</a> ($count)</li>" >> "$main_html"
+	done <<< "$cats_counts"
+	echo "</ul>" >> "$main_html"
+	echo "Generating $main_html"
 }
 
 # Generate an archives file for all or specific category
@@ -45,6 +52,8 @@ function gen_index
 		| Category: "$5; print "\
 	</footer>\n</article>\n"}}'
 }
+
+# TODO: Exclude draft posts
 
 function gen_csv
 {
