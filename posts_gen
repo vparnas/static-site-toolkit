@@ -12,7 +12,7 @@ function gen_categories
 {
 	main_html="categories.html"
 
-	echo -e "<h2>Categories</h2>\n<ul>" > "$main_html"
+	echo -e "<h1>Categories</h1>\n<ul>" > "$main_html"
 	cats_counts=$(sed '1d' "$1" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
 	while read -r count cat; do
 		fname=$(name_linkify "$cat")
@@ -30,7 +30,7 @@ function gen_categories
 function gen_archives
 {
 	# TODO: category link in lowercase one-word format 
-	[ -z "$2" ] && echo "<h2>Archives</h2>" || echo "<h2>Category - $2</h2>"
+	[ -z "$2" ] && echo "<h1>Archives</h1>" || echo "<h1>Category - $2</h1>"
 	sed '1d' "$1" | awk -F "$sep" -v cat="$2" \
 		'{if ($1 && (!cat || tolower($5) == tolower(cat)))\
 			{print "<p>"$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
@@ -53,7 +53,10 @@ function gen_index
 	</footer>\n</article>\n"}}'
 }
 
-# TODO: Exclude draft posts
+# TODO
+#function gen_rss
+#{
+#}
 
 function gen_csv
 {
@@ -65,8 +68,10 @@ function gen_csv
 		/^title:/{t=$2} 
 		/^category:/{c=$2} 
 		/^summary:/{s=$2} 
+		/^status:/{st=$2} 
 		/^\s*$/{nextfile}
 	END {
+	if (st ~ /draft/) exit;
 	href=FILENAME;
 	sub("\\.md$", "/", href);
 	sub("^\\.", "", href); 
