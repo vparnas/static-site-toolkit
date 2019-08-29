@@ -58,7 +58,7 @@ main() {
 	printf '[ssg] ' >&2
 	print_status 'file, ' 'files, ' "$fs" >&2
 
-	# sitemap
+	# sitemap # TODO: redo. Fix lastmod date and baseurl (eliminate the 'html')
 	date=$(date +%Y-%m-%d)
  	urls=$(list_pages "$src")
 	test -n "$urls" &&
@@ -148,7 +148,12 @@ check_and_set_page_var() {
 extract_metadata() {
 	name="$1"
 	input_file="$2"
-	sed -n '1,/^[[:space:]]*$/s/^'"$name"':[[:space:]]*//ip' $input_file
+    ext="${input_file##*.}"
+    if [ "$ext" = "md" ]; then
+        sed -n '1,/^[[:space:]]*$/s/^'"$name"':[[:space:]]*//ip' $input_file
+    else
+        echo
+    fi        
 }
 
 render_files() {
@@ -161,23 +166,29 @@ render_files() {
 		echo "Processing: $f"
         # Create a separate dir/index.html for each md document except those exclusively named index.md
 		echo "$f" | grep -q 'index\..*' \
-			&& page_url="${f%\index.*}/" || page_url="${f%\.*}/"
+			&& page_url="${f%\index.*}" || page_url="${f%\.*}/"
 		dst_file_dir="$2/$page_url"
-		[ -d "$dist_file_dir" ] || mkdir -p "$dst_file_dir"
         dst_file="$dst_file_dir""index.html"
         input_file="$1/$f"
+
+        extract_metadata "status" "$input_file" | 
+            grep -qi 'draft' && echo "Skip draft $f" && continue
+		[ -d "$dist_file_dir" ] || mkdir -p "$dst_file_dir"
 		
+        pagetitle="$site_title"
+        content_title=""
 		ext="${f##*.}"
 		if [ "$ext" = "md" ]; then
 			content_title=$(extract_metadata "title" "$input_file")
-			pagedate=$(extract_metadata "date" "$input_file")
-			canonical=$(extract_metadata "canonical" "$input_file")
-			mathjax=$(extract_metadata "mathjax" "$input_file")
-			# TODO: category read to populate page (if present)
+            [ -n "$content_title" ] && pagetitle="$site_title - $content_title"
+        elif [ "$ext" = "html" ]; then
+            first_h1=$(sed -rn '/<h1>.*<\/h1>/I{s/<h1>(.*)<\/h1>/\1/ip;q}' "$input_file")
+            [ -n "$first_h1" ] && pagetitle="$site_title - $first_h1"
 		fi
-		[ -n "$content_title" ] &&
-			pagetitle="$site_title - $content_title" ||
-			pagetitle="$site_title"
+        pagedate=$(extract_metadata "date" "$input_file")
+        canonical=$(extract_metadata "canonical" "$input_file")
+        mathjax=$(extract_metadata "mathjax" "$input_file")
+        category=$(extract_metadata "category" "$input_file")
 		page_url=$(echo "$page_url" | sed 's#^\.##') # remove leading . in url
 		(
 			[ -f "$HEADER" ] && 
@@ -188,6 +199,7 @@ render_files() {
 					-e 's#\$PAGEURL#'"$page_url"'#g' |
 					check_and_set_page_var "CONTENT_TITLE" "$content_title" |
 					check_and_set_page_var "DATE" "$pagedate" |
+					check_and_set_page_var "CATEGORY" "$category" |
 					check_and_set_page_var "FEED_RSS" "$FEED_RSS" |
 					check_and_set_page_var "FEED_ATOM" "$FEED_ATOM" |
 					check_and_set_page_var "CANONICAL" "$canonical" |
@@ -208,16 +220,13 @@ render_files() {
 				cat "$input_file"
 			fi
 			[ -f "$FOOTER" ] && cat "$FOOTER"
-		) | process_html "$site_title" "$base_url" > "$dst_file" 
+		) | links_rel_to_abs "$base_url" > "$dst_file" 
 	done
 }
 
-process_html() {
-	site_title="$1"
-	base_url="$2"
-	# Inject site title if absent, and convert relative links to absolute
-	sed -re 's#(<title>)[[:space:]]*(<\/title>)#\1'"$site_title"'\2#i' \
-		-e 's#(href[[:space:]]*=[[:space:]]*")\/#\1'"$base_url"'\/#ig'
+links_rel_to_abs() {
+	base_url="$1"
+	sed -r 's#(href[[:space:]]*=[[:space:]]*")\/#\1'"$base_url"'\/#ig'
 }
 
 list_pages() {
