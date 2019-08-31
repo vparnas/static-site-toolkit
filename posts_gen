@@ -53,10 +53,74 @@ function gen_index
 	</footer>\n</article>\n"}}'
 }
 
-# TODO
-#function gen_rss
-#{
-#}
+function gen_sitemap
+{
+	site_url="$2"
+    cat <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"
+xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+EOF
+	IFS="#"
+	sed '1d' "$1" |
+	while read -r d m _ h _ _; do
+        if [ -n "$m" ]; then
+			lastmod="$m" 
+		elif [ -n "$d" ]; then
+			lastmod="$d"
+		else # TODO: What date to assign for non-dated pages?
+			lastmod="$(date '+%Y-%m-%d')"
+		fi
+		echo "<url><loc>$site_url$h</loc><lastmod>$lastmod</lastmod><priority>1.0</priority></url>"
+	done
+
+	echo "</urlset>"
+}
+
+function gen_rss
+{
+	site_title="$2"
+	site_url="$3"
+	build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
+
+	cat <<EOF  
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"><channel>
+	<title>$site_title</title>
+	<link>$site_url</link>
+	<description></description>
+	<lastBuildDate>$build_date</lastBuildDate>
+EOF
+
+	IFS="#"
+	sed '1d' "$1" |
+	while read -r d m t h c s; do
+		post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$d")
+		site_url_no_lead="${site_url##*/}"
+		if [ -n "$s" ]; then 
+            summary="$s"
+        else
+            #TODO
+            summary=""
+        fi
+		cat <<EOF
+	<item>
+		<title>$t</title>
+		<link>"$site_url$h</link>
+		<description>$summary</description>
+		<dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">$site_title</dc:creator>
+		<pubDate>$post_date</pubDate>
+		<guid isPermaLink="false">tag:$site_url_no_lead,$d:$h</guid>
+	</item>
+EOF
+	done
+
+	cat <<EOF
+</channel></rss>
+EOF
+}
 
 function gen_csv
 {
@@ -83,18 +147,22 @@ function help
 	echo "-c <dir path>: generate generic CSV"
 	echo "-a <csv> [category]: generate archives file"
 	echo "-i <csv>: generate index file"
+	echo "-r <csv> <site title> <site url>: generate rss"
+	echo "-m <csv> <site url>: generate site map"
 	echo "-C <csv> : generate categories indeces"
 	echo "-h: this help"
 }
 
 [ -n "$1" ] && [ -z "$2" ] && echo "Must provide valid input" && exit 1
 
-while getopts "achiC" o; do 
+while getopts "achiCrm" o; do 
     case "${o}" in
         a) gen_archives "$2" "$3"; exit 0;;
         c) gen_csv "$2"; exit 0;;
         C) gen_categories "$2"; exit 0;;
         i) gen_index "$2"; exit 0;;
+        r) [ -n "$4" ] && gen_rss "$2" "$3" "$4" || echo "Need site title and url"; exit 0;;
+        m) [ -n "$3" ] && gen_sitemap "$2" "$3" || echo "Need site url"; exit 0;;
         h|*) help; exit 0;;
     esac 
 done
