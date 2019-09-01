@@ -58,12 +58,6 @@ main() {
 	printf '[ssg] ' >&2
 	print_status 'file, ' 'files, ' "$fs" >&2
 
-	# sitemap # TODO: redo. Fix lastmod date and baseurl (eliminate the 'html')
-	date=$(date +%Y-%m-%d)
- 	urls=$(list_pages "$src")
-	test -n "$urls" &&
-	render_sitemap "$urls" "$base_url" "$date" > "$dst/sitemap.xml"
-
 	print_status 'url' 'urls' "$urls" >&2
 	echo >&2
 }
@@ -167,6 +161,7 @@ render_files() {
         # Create a separate dir/index.html for each md document except those exclusively named index.md
 		echo "$f" | grep -q 'index\..*' \
 			&& page_url="${f%\index.*}" || page_url="${f%\.*}/"
+		page_url="${page_url#.}" # remove leading . in url
 		dst_file_dir="$2/$page_url"
         dst_file="$dst_file_dir""index.html"
         input_file="$1/$f"
@@ -189,7 +184,6 @@ render_files() {
         canonical=$(extract_metadata "canonical" "$input_file")
         mathjax=$(extract_metadata "mathjax" "$input_file")
         category=$(extract_metadata "category" "$input_file")
-		page_url=$(echo "$page_url" | sed 's#^\.##') # remove leading . in url
 		(
 			[ -f "$HEADER" ] && 
 				cat "$HEADER" |
@@ -233,23 +227,6 @@ list_pages() {
 	e="\\( -name '*.html' -o -name '*.md' \\)"
 	cd "$1" && eval "find -L . -type f ! -path '*/.*' ! -path '*/_*' $IGNORE $e" |
 	sed 's#^./##;s#.md$#.html#;s#/index.html$#/#'
-}
-
-render_sitemap() {
-	urls="$1"
-	base_url="$2"
-	date="$3"
-
-	echo '<?xml version="1.0" encoding="UTF-8"?>'
-	echo '<urlset'
-	echo 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-	echo 'xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9'
-	echo 'http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"'
-	echo 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-	echo "$urls" |
-	sed -E 's#^(.*)$#<url><loc>'"$base_url"'/\1</loc><lastmod>'\
-"$date"'</lastmod><priority>1.0</priority></url>#'
-	echo '</urlset>'
 }
 
 main "$@"
