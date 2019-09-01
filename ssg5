@@ -1,6 +1,6 @@
 #!/bin/sh -e
 #
-# https://rgz.ee/bin/ssg5
+# Based on https://rgz.ee/bin/ssg5
 # Copyright 2018-2019 Roman Zolotarev <hi@romanzolotarev.com>
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -16,15 +16,18 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+[ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
+[ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
+
+# TODO: Command line options - redo for optional args, considering the config file
 main() {
-	[ -z "$4" ] && usage
+	[ -z "$2" ] && usage
  	test -d "$1" || no_dir "$1"
  	test -d "$2" || no_dir "$2"
-
 	src=$(readlink_f "$1")
 	dst=$(readlink_f "$2")
-	site_title="$3"
-	base_url="$4"
+	[ -n "$3" ] && SITE_TITLE="$3"
+	[ -n "$4" ] && BASE_URL="$4"
 
 	IGNORE=$(
 		if ! test -f "$src/.ssgignore"
@@ -51,7 +54,7 @@ main() {
 	if [ -n "$fs" ]; then
 		echo "$fs" | tee "$dst/.files"
 		echo "$fs" | grep -iE '\.md$|\.html$' | 
-			render_files "$src" "$dst" "$site_title" "$base_url"
+			render_files "$src" "$dst" "$SITE_TITLE" "$BASE_URL"
 		echo "$fs" | grep -iEv '\.md$|\.html$' |
 			(cd "$src" && cpio -puL "$dst")
 	fi
@@ -88,7 +91,7 @@ print_status() {
 }
 
 usage() {
-	echo "usage: ${0##*/} src dst title base_url" >&2
+	echo "usage: ${0##*/} src dst [title] [base_url]" >&2
 	exit 1
 }
 
@@ -151,8 +154,8 @@ extract_metadata() {
 }
 
 render_files() {
-    site_title="$3"
-    base_url="$4"
+    SITE_TITLE="$3"
+    BASE_URL="$4"
 
 #   filefull=$(basename -- "$1")
 #   filename="${filefull%.*}"
@@ -170,15 +173,15 @@ render_files() {
             grep -qi 'draft' && echo "Skip draft $f" && continue
 		[ -d "$dist_file_dir" ] || mkdir -p "$dst_file_dir"
 		
-        pagetitle="$site_title"
+        pagetitle="$SITE_TITLE"
         content_title=""
 		ext="${f##*.}"
 		if [ "$ext" = "md" ]; then
 			content_title=$(extract_metadata "title" "$input_file")
-            [ -n "$content_title" ] && pagetitle="$site_title - $content_title"
+            [ -n "$content_title" ] && pagetitle="$SITE_TITLE - $content_title"
         elif [ "$ext" = "html" ]; then
             first_h1=$(sed -rn '/<h1>.*<\/h1>/I{s/<h1>(.*)<\/h1>/\1/ip;q}' "$input_file")
-            [ -n "$first_h1" ] && pagetitle="$site_title - $first_h1"
+            [ -n "$first_h1" ] && pagetitle="$SITE_TITLE - $first_h1"
 		fi
         pagedate=$(extract_metadata "date" "$input_file")
         canonical=$(extract_metadata "canonical" "$input_file")
@@ -187,9 +190,9 @@ render_files() {
 		(
 			[ -f "$HEADER" ] && 
 				cat "$HEADER" |
-				sed -e 's#\$SITETITLE#'"$site_title"'#g' \
+				sed -e 's#\$SITETITLE#'"$SITE_TITLE"'#g' \
 					-e 's#\$PAGETITLE#'"$pagetitle"'#g'\
-					-e 's#\$SITEURL#'"$base_url"'#g'\
+					-e 's#\$SITEURL#'"$BASE_URL"'#g'\
 					-e 's#\$PAGEURL#'"$page_url"'#g' |
 					check_and_set_page_var "CONTENT_TITLE" "$content_title" |
 					check_and_set_page_var "DATE" "$pagedate" |
@@ -203,7 +206,7 @@ render_files() {
 				if test -x "$(which lowdown 2> /dev/null)"; then
 					# If metadata section starts with a yaml-metadata '---', remove for lowdown compatibility
 					sed '1{/^---/d}' "$input_file" | 
-					lowdown -D html-skiphtml -d autolink
+					lowdown -D html-skiphtml -D html-head-ids -d autolink
 				elif test -x "$(which Markdown.pl 2> /dev/null)"; then
 					cat "$input_file" | Markdown.pl
 				else
@@ -214,13 +217,13 @@ render_files() {
 				cat "$input_file"
 			fi
 			[ -f "$FOOTER" ] && cat "$FOOTER"
-		) | links_rel_to_abs "$base_url" > "$dst_file" 
+		) | links_rel_to_abs "$BASE_URL" > "$dst_file" 
 	done
 }
 
 links_rel_to_abs() {
-	base_url="$1"
-	sed -r 's#(href[[:space:]]*=[[:space:]]*")\/#\1'"$base_url"'\/#ig'
+	BASE_URL="$1"
+	sed -r 's#(href[[:space:]]*=[[:space:]]*")\/#\1'"$BASE_URL"'\/#ig'
 }
 
 list_pages() {

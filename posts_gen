@@ -30,11 +30,14 @@ function gen_categories
 function gen_archives
 {
 	# TODO: category link in lowercase one-word format 
-	[ -z "$2" ] && echo "<h1>Archives</h1>" || echo "<h1>Category - $2</h1>"
+	[ -z "$2" ] && echo "<h1>Archives</h1>" || echo "<h1>$2 category</h1>"
+	echo "<p>"
 	sed '1d' "$1" | awk -F "$sep" -v cat="$2" \
 		'{if ($1 && (!cat || tolower($5) == tolower(cat)))\
-			{print "<p>"$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
-			if (!cat) print " | Category: "$5; print "</p>"}}'
+			{print ""$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
+			if (!cat) print " | Category: "$5; print "<br/>"}}'
+	echo "</p>"
+	
 }
 
 function gen_index
@@ -183,12 +186,12 @@ function help
 
 while getopts "achiCrm" o; do 
     case "${o}" in
-        a) gen_archives "$2" "$3"; exit 0;;
+        a) gen_archives "${@:2}"; exit 0;;
         c) gen_csv "$2"; exit 0;;
         C) gen_categories "$2"; exit 0;;
         i) gen_index "$2"; exit 0;;
-        r) [ -n "$5" ] && gen_rss "$2" "$3" "$4" "$5" || help; exit 0;;
-        m) [ -n "$3" ] && gen_sitemap "$2" "$3" || help; exit 0;;
+        r) [ -n "$5" ] && gen_rss "${@:2}" || help; exit 0;;
+        m) [ -n "$3" ] && gen_sitemap "${@:2}" || help; exit 0;;
         h|*) help; exit 0;;
     esac 
 done
