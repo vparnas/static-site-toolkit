@@ -10,12 +10,13 @@ function name_linkify
 # TODO: configurable to select the category html name format (include extension in link?)
 function gen_categories
 {
-	main_html="categories.html"
+	[ -n "$2" ] && out_dir="${2%/}" || out_dir=""
+	[ -n "$3" ] && main_html="$out_dir/""$3" || main_html="$out_dir/""categories.html"
 
 	echo -e "<h1>Categories</h1>\n<ul>" > "$main_html"
 	cats_counts=$(sed '1d' "$1" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
 	while read -r count cat; do
-		fname=$(name_linkify "$cat")
+		fname="$out_dir/"$(name_linkify "$cat")
 		echo "Generating $fname.html"
 		gen_archives "$1" "$cat" > "$fname.html"
 		echo "<li><a href='/$fname/'>$cat</a> ($count)</li>" >> "$main_html"
@@ -178,7 +179,7 @@ function help
 	echo "-i <csv>: generate index file"
 	echo "-r <csv> <html dir> <site title> <site url>: generate rss"
 	echo "-m <csv> <site url>: generate site map"
-	echo "-C <csv> : generate categories indeces"
+	echo "-C <csv> [rel output dir] [categories.html] : generate categories indices"
 	echo "-h: this help"
 }
 
@@ -188,7 +189,7 @@ while getopts "achiCrm" o; do
     case "${o}" in
         a) gen_archives "${@:2}"; exit 0;;
         c) gen_csv "$2"; exit 0;;
-        C) gen_categories "$2"; exit 0;;
+        C) gen_categories "${@:2}"; exit 0;;
         i) gen_index "$2"; exit 0;;
         r) [ -n "$5" ] && gen_rss "${@:2}" || help; exit 0;;
         m) [ -n "$3" ] && gen_sitemap "${@:2}" || help; exit 0;;
