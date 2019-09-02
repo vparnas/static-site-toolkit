@@ -221,10 +221,9 @@ render_files() {
 	done
 }
 
-# TODO: src, not just href
 links_rel_to_abs() {
 	BASE_URL="$1"
-	sed -r 's#(href[[:space:]]*=[[:space:]]*["'"'"'])\/#\1'"$BASE_URL"'\/#ig'
+	sed -r 's#((href|src)[[:space:]]*=[[:space:]]*["'"'"'])\/#\1'"$BASE_URL"'\/#ig'
 }
 
 list_pages() {
