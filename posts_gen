@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# TODO use CFG_FILE vars for output directory, file names, etc
+# TODO: consolidate ssg with posts_gen. Or not? Use the same config?
+[ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
+[ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 sep="#"
 
 function name_linkify
@@ -8,17 +12,20 @@ function name_linkify
 }
 
 # TODO: configurable to select the category html name format (include extension in link?)
-function gen_categories
+function gen_categories_htmls
 {
-	[ -n "$2" ] && out_dir="${2%/}" || out_dir=""
-	[ -n "$3" ] && main_html="$out_dir/""$3" || main_html="$out_dir/""categories.html"
+	markdown_list="$1"; shift
+	out_dir="$1"; shift
+	main_html="$1"; shift
+	[ -n "$out_dir" ] && out_dir="${out_dir%/}" || out_dir=""
+	[ -n "$main_html" ] && main_html="$out_dir/""$main_html" || main_html="$out_dir/""categories.html"
 
 	echo -e "<h1>Categories</h1>\n<ul>" > "$main_html"
-	cats_counts=$(sed '1d' "$1" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
+	cats_counts=$(sed '1d' "$markdown_list" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
 	while read -r count cat; do
 		fname="$out_dir/"$(name_linkify "$cat")
 		echo "Generating $fname.html"
-		gen_archives "$1" "$cat" > "$fname.html"
+		gen_archives_html "$markdown_list" "$cat" > "$fname.html"
 		echo "<li><a href='/$fname/'>$cat</a> ($count)</li>" >> "$main_html"
 	done <<< "$cats_counts"
 	echo "</ul>" >> "$main_html"
@@ -28,12 +35,14 @@ function gen_categories
 # Generate an archives file for all or specific category
 # $1: posts CSV
 # $2: (optional) category
-function gen_archives
+function gen_archives_html
 {
+	markdown_list="$1"; shift
+	cat="$1"; shift
 	# TODO: category link in lowercase one-word format 
-	[ -z "$2" ] && echo "<h1>Archives</h1>" || echo "<h1>$2 category</h1>"
+	[ -z "$cat" ] && echo "<h1>Archives</h1>" || echo "<h1>$cat category</h1>"
 	echo "<p>"
-	sed '1d' "$1" | awk -F "$sep" -v cat="$2" \
+	sed '1d' "$markdown_list" | awk -F "$sep" -v cat="$cat" \
 		'{if ($1 && (!cat || tolower($5) == tolower(cat)))\
 			{print ""$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
 			if (!cat) print " | Category: "$5; print "<br/>"}}'
@@ -41,11 +50,12 @@ function gen_archives
 	
 }
 
-function gen_index
+function gen_index_html
 {
+	markdown_list="$1"; shift
 	# TODO: category link in lowercase one-word format 
 	echo "<h2>All Articles</h2>"
-	sed '1d' "$1" | awk -F "$sep" '{if ($1) {print \
+	sed '1d' "$markdown_list" | awk -F "$sep" '{if ($1) {print \
 "<article class=\"hentry\">\n\
 	<header><h2 class=\"entry-title\">\n\
 		<a href=\""$4"\" title=\""$3"\">"$3"</a></h2>\n\
@@ -59,7 +69,8 @@ function gen_index
 
 function gen_sitemap
 {
-	site_url="$2"
+	markdown_list="$1"; shift
+	site_url="$1"; shift
     cat <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -68,7 +79,7 @@ http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"
 xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 EOF
 	IFS="#"
-	sed '1d' "$1" |
+	sed '1d' "$markdown_list" |
 	while read -r d m _ h _ _; do
         if [ -n "$m" ]; then
 			lastmod="$m" 
@@ -103,9 +114,10 @@ function remove_nbsp
 
 function gen_rss
 {
-	html_dir="$2"
-	site_title="$3"
-	site_url="$4"
+	markdown_list="$1"; shift
+	html_dir="$1"; shift
+	site_title="$1"; shift
+	site_url="$1"; shift
 	build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
 
 	[ ! -d "$html_dir" ] && echo "directory $html_dir nonexistant" && return
@@ -120,7 +132,7 @@ function gen_rss
 EOF
 
 	IFS="#"
-	sed '1d' "$1" |
+	sed '1d' "$markdown_list" |
 	while read -r d m t h c s; do
 		[ -z "$d" ] && continue
 		post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$d")
@@ -152,7 +164,7 @@ EOF
 EOF
 }
 
-function gen_csv
+function gen_markdown_csv_list
 {
 	echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
 	cd "$1" && find . -iregex '.*\.md' -type f -exec awk -v sep="$sep" '
@@ -183,14 +195,14 @@ function help
 	echo "-h: this help"
 }
 
-[ -n "$1" ] && [ -z "$2" ] && echo "Must provide valid input" && exit 1
+[ -n "$1" ] && [ -z "$2" ] && help && exit 1
 
 while getopts "achiCrm" o; do 
     case "${o}" in
-        a) gen_archives "${@:2}"; exit 0;;
-        c) gen_csv "$2"; exit 0;;
-        C) gen_categories "${@:2}"; exit 0;;
-        i) gen_index "$2"; exit 0;;
+        a) gen_archives_html "${@:2}"; exit 0;;
+        c) gen_markdown_csv_list "$2"; exit 0;;
+        C) gen_categories_htmls "${@:2}"; exit 0;;
+        i) gen_index_html "$2"; exit 0;;
         r) [ -n "$5" ] && gen_rss "${@:2}" || help; exit 0;;
         m) [ -n "$3" ] && gen_sitemap "${@:2}" || help; exit 0;;
         h|*) help; exit 0;;
