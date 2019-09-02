@@ -56,7 +56,7 @@ main() {
 		echo "$fs" | grep -iE '\.md$|\.html$' | 
 			render_files "$src" "$dst" "$SITE_TITLE" "$BASE_URL"
 		echo "$fs" | grep -iEv '\.md$|\.html$' |
-			(cd "$src" && cpio -puL "$dst")
+			(cd "$src" && cpio -puLd "$dst") # -L and -d necessary for simlinked contents
 	fi
 	printf '[ssg] ' >&2
 	print_status 'file, ' 'files, ' "$fs" >&2
@@ -147,7 +147,7 @@ extract_metadata() {
 	input_file="$2"
     ext="${input_file##*.}"
     if [ "$ext" = "md" ]; then
-        sed -n '1,/^[[:space:]]*$/s/^'"$name"':[[:space:]]*//ip' $input_file
+        sed -rn '1,/^\s*$/s/^'"$name"':\s*(.*[^[:space:]])\s*$/\1/ip' "$input_file"
     else
         echo
     fi        
