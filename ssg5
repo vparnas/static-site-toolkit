@@ -18,6 +18,7 @@
 
 [ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
+[ -z "$IGNORE_FILE" ] && IGNORE_FILE=".ssgignore"
 
 # TODO: Command line options - redo for optional args, considering the config file
 main() {
@@ -30,20 +31,19 @@ main() {
 	[ -n "$4" ] && BASE_URL="$4"
 
 	IGNORE=$(
-		if ! test -f "$src/.ssgignore"
-		then
+		if [ -f "$src/$IGNORE_FILE" ]; then
+            while read -r x; do
+                [ -n "$x" ] || continue
+                printf ' ! -path "*/%s*"' "$x"
+            done < "$src/$IGNORE_FILE"
+        else
 			printf ' ! -path "*/.*"'
 			return
 		fi
-		while read -r x
-		do
-			test -n "$x" || continue
-			printf ' ! -path "*/%s*"' "$x"
-		done < "$src/.ssgignore"
 	)
     [ -z "$HEADER" ] && export HEADER="$src/_header.html"
     [ -z "$FOOTER" ] && export FOOTER="$src/_footer.html"
-	list_dirs "$src" | (cd "$src" && cpio -pduL "$dst")
+	list_dirs "$src" | (cd "$src" && cpio -dpuL "$dst")
 	fs=$(
 		if [ -f "$dst/.files" ]; then
 			list_affected_files "$src" "$dst/.files"
@@ -56,7 +56,7 @@ main() {
 		echo "$fs" | grep -iE '\.md$|\.html$' | 
 			render_files "$src" "$dst" "$SITE_TITLE" "$BASE_URL"
 		echo "$fs" | grep -iEv '\.md$|\.html$' |
-			(cd "$src" && cpio -puLd "$dst") # -L and -d necessary for simlinked contents
+			(cd "$src" && cpio -dpuL "$dst") # -L and -d necessary for simlinked contents
 	fi
 	printf '[ssg] ' >&2
 	print_status 'file, ' 'files, ' "$fs" >&2

@@ -15,18 +15,20 @@ function name_linkify
 function gen_categories_htmls
 {
 	markdown_list="$1"; shift
+    base_dir="$1"; shift
 	out_dir="$1"; shift
 	main_html="$1"; shift
 	[ -n "$out_dir" ] && out_dir="${out_dir%/}" || out_dir=""
-	[ -n "$main_html" ] && main_html="$out_dir/""$main_html" || main_html="$out_dir/""categories.html"
+	[ -z "$main_html" ] && main_html="categories.html"
+    main_html="$base_dir/$out_dir/$main_html" 
 
 	echo -e "<h1>Categories</h1>\n<ul>" > "$main_html"
 	cats_counts=$(sed '1d' "$markdown_list" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
 	while read -r count cat; do
-		fname="$out_dir/"$(name_linkify "$cat")
-		echo "Generating $fname.html"
-		gen_archives_html "$markdown_list" "$cat" > "$fname.html"
-		echo "<li><a href='/$fname/'>$cat</a> ($count)</li>" >> "$main_html"
+		cat_url="$out_dir/"$(name_linkify "$cat")
+		echo "Generating $cat_url.html"
+		gen_archives_html "$markdown_list" "$cat" > "$base_dir/$cat_url.html"
+		echo "<li><a href='/$cat_url/'>$cat</a> ($count)</li>" >> "$main_html"
 	done <<< "$cats_counts"
 	echo "</ul>" >> "$main_html"
 	echo "Generating $main_html"
@@ -193,7 +195,7 @@ function help
 	echo "-i <csv>: generate index file"
 	echo "-r <csv> <html dir> <site title> <site url>: generate rss"
 	echo "-m <csv> <site url>: generate site map"
-	echo "-C <csv> [rel output dir] [categories.html] : generate categories indices"
+	echo "-C <csv> <base dir> [rel output dir] [categories.html] : generate categories indices"
 	echo "-h: this help"
 }
 
