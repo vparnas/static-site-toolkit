@@ -4,6 +4,7 @@
 # TODO: consolidate ssg with posts_gen. Or not? Use the same config?
 [ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
+#[ -z "$IGNORE" ] && IGNORE=' ! -path "*/.*" ! -path "*/_*"'
 sep="#"
 
 function name_linkify
@@ -69,7 +70,6 @@ function gen_index_html
 	</footer>\n</article>\n"}}'
 }
 
-# TODO: generate for more than just markdown files
 function gen_sitemap
 {
 	markdown_list="$1"; shift
@@ -137,7 +137,7 @@ EOF
 	IFS="#"
 	sed '1d' "$markdown_list" |
 	while read -r d m t h c s; do
-		[ -z "$d" ] && continue
+        ([ -z "$d" ] || [ -z "$t" ] || [ "$h" = "/" ]) && continue
 		post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$d")
 		site_url_no_lead="${site_url##*/}"
 		if [ -n "$s" ]; then 
@@ -167,12 +167,14 @@ EOF
 EOF
 }
 
-# TODO: generate for more than just markdown files
-function gen_markdown_csv_list
+# TODO: $IGNORE directive in find not working
+# TODO: What date to use for non-markdown?
+function gen_content_list
 {
 	echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
-	cd "$1" && find -L . -iregex '.*\.md' -type f -exec awk -v sep="$sep" '
+    cd "$1" && find -L . ! -path "*/.*" ! -path "*/_*" -iregex '.*\.\(md\|html\)' -type f -exec awk -v sep="$sep" '
 	BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
+    {if (FILENAME !~ /\.md$/) nextfile}
 		/^date:/{d=$2} 
 		/^modified:/{m=$2} 
 		/^title:/{t=$2} 
@@ -183,14 +185,15 @@ function gen_markdown_csv_list
 	END {
 	if (st ~ /draft/) exit;
 	href=FILENAME;
-	sub("\\.md$", "/", href);
+    sub("\\/index\\..*$", "/", href);
+    sub("\\.(md|html)$", "/", href);
 	sub("^\\.", "", href); 
 	print d sep m sep t sep href sep c sep s}' {} \; | sort -rn
 }
 
 function help
 {
-	echo "-c <dir path>: generate generic CSV"
+	echo "-c <dir path>: generate content list in a CSV"
 	echo "-a <csv> [category]: generate archives file"
 	echo "-i <csv>: generate index file"
 	echo "-r <csv> <html dir> <site title> <site url>: generate rss"
@@ -204,7 +207,7 @@ function help
 while getopts "achiCrm" o; do 
     case "${o}" in
         a) gen_archives_html "${@:2}"; exit 0;;
-        c) gen_markdown_csv_list "$2"; exit 0;;
+        c) gen_content_list "$2"; exit 0;;
         C) gen_categories_htmls "${@:2}"; exit 0;;
         i) gen_index_html "$2"; exit 0;;
         r) [ -n "$5" ] && gen_rss "${@:2}" || help; exit 0;;
