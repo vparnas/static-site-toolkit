@@ -36,10 +36,8 @@ main() {
                 [ -n "$x" ] || continue
                 printf ' ! -path "*/%s*"' "$x"
             done < "$src/$IGNORE_FILE"
-        else
-			printf ' ! -path "*/.*"'
-			return
-		fi
+        fi
+        printf ' ! -name "."  ! -path "*/.*" ! -path "*/_*"'
 	)
     [ -z "$HEADER" ] && export HEADER="$src/_header.html"
     [ -z "$FOOTER" ] && export FOOTER="$src/_footer.html"
@@ -101,20 +99,21 @@ no_dir() {
 }
 
 list_dirs() {
-	cd "$1" && eval "find . -type d ! -name '.' ! -path '*/_*' $IGNORE"
+	cd "$1" && eval "find . -type d $IGNORE"
 }
 
 list_files() {
-	cd "$1" && eval "find -L . -type f ! -name '.' ! -path '*/_*' $IGNORE"
+	cd "$1" && eval "find -L . -type f $IGNORE"
 }
 
 list_dependant_files () {
  	e="\\( -name '*.html' -o -name '*.md' -o -name '*.css' -o -name '*.js' \\)"
-	cd "$1" && eval "find -L . -type f ! -name '.' ! -path '*/_*' $IGNORE $e"
+	cd "$1" && eval "find -L . -type f $IGNORE $e"
 }
 
 list_newer_files() {
-	cd "$1" && eval "find -L . -type f ! -name '.' $IGNORE -newer $2"
+	cd "$1" && eval "find -L . -type f $IGNORE -newer $2" && 
+        eval "find -L . -type f -path '*/_*' -newer $2"
 }
 
 
@@ -228,7 +227,7 @@ links_rel_to_abs() {
 
 list_pages() {
 	e="\\( -name '*.html' -o -name '*.md' \\)"
-	cd "$1" && eval "find -L . -type f ! -path '*/.*' ! -path '*/_*' $IGNORE $e" |
+	cd "$1" && eval "find -L . -type f $IGNORE $e" |
 	sed 's#^./##;s#.md$#.html#;s#/index.html$#/#'
 }
 
