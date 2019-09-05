@@ -121,17 +121,19 @@ function gen_rss
 	html_dir="$1"; shift
 	site_title="$1"; shift
 	site_url="$1"; shift
+    feed_url="$1"; shift
 	build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
 
 	[ ! -d "$html_dir" ] && echo "directory $html_dir nonexistant" && return
 
 	cat <<EOF  
 <?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0"><channel>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
 	<title>$site_title</title>
 	<link>$site_url</link>
 	<description></description>
 	<lastBuildDate>$build_date</lastBuildDate>
+    <atom:link href="$site_url/${feed_url#/}" rel="self" type="application/rss+xml" />
 EOF
 
 	IFS="#"
@@ -196,7 +198,7 @@ function help
 	echo "-c <dir path>: generate content list in a CSV"
 	echo "-a <csv> [category]: generate archives file"
 	echo "-i <csv>: generate index file"
-	echo "-r <csv> <html dir> <site title> <site url>: generate rss"
+	echo "-r <csv> <html dir> <site title> <site url> <feed url>: generate rss"
 	echo "-m <csv> <site url>: generate site map"
 	echo "-C <csv> <base dir> [rel output dir] [categories.html] : generate categories indices"
 	echo "-h: this help"
