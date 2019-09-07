@@ -48,7 +48,7 @@ function gen_archives_html
 	sed '1d' "$markdown_list" | awk -F "$sep" -v cat="$cat" \
 		'{if ($1 && (!cat || tolower($5) == tolower(cat)))\
 			{print ""$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
-			if (!cat) print " | Category: "$5; print "<br/>"}}'
+			if (!cat) print " | "$5; print "<br/>"}}'
 	echo "</p>"
 	
 }
@@ -57,7 +57,6 @@ function gen_index_html
 {
 	markdown_list="$1"; shift
 	# TODO: category link in lowercase one-word format 
-	echo "<h2>All Articles</h2>"
 	sed '1d' "$markdown_list" | awk -F "$sep" '{if ($1) {print \
 "<article class=\"hentry\">\n\
 	<header><h2 class=\"entry-title\">\n\
