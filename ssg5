@@ -16,7 +16,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-[ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
+CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 [ -z "$IGNORE_FILE" ] && IGNORE_FILE=".ssgignore"
 
@@ -152,6 +152,7 @@ extract_metadata() {
     fi        
 }
 
+# TODO: process template vars for both header AND footer
 render_files() {
     SITE_TITLE="$3"
     BASE_URL="$4"
@@ -168,8 +169,8 @@ render_files() {
         dst_file="$dst_file_dir""index.html"
         input_file="$1/$f"
 
-        extract_metadata "status" "$input_file" | 
-            grep -qi 'draft' && echo "Skip draft $f" && continue
+		extract_metadata "status" "$input_file" |
+			grep -qi 'draft' && echo "Skip draft $f" && continue
 		[ -d "$dist_file_dir" ] || mkdir -p "$dst_file_dir"
 		
         pagetitle="$SITE_TITLE"
@@ -199,6 +200,7 @@ render_files() {
 					check_and_set_page_var "FEED_RSS" "$FEED_RSS" |
 					check_and_set_page_var "FEED_ATOM" "$FEED_ATOM" |
 					check_and_set_page_var "CANONICAL" "$canonical" |
+					check_and_set_page_var "FAV_ICON" "$FAV_ICON" |
 					check_and_set_page_var "MATHJAX" "$mathjax"
 
 			if [ "$ext" = 'md' ]; then
