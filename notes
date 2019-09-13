@@ -1,0 +1,15 @@
+=== TODO ===
+
+[1] Better template processing - w header, footer, rows of data. Insp: exec-cmd?
+[2] TODO Leverage a global def list of link definitions
+[3] ssg5: process template vars for both header AND footer
+consolidate ssg with posts_gen. Or not? Use the same config?
+ssg5: command line options - redo for optional args, considering the config file
+init routine w/ initializing params: gen Makefile, ~index docs, hdr/ft
+configurable to select the category html name format (include extension in link?)
+Archives & index: category link in lowercase one-word format 
+Sitemap: if date/moddate not present, assign other than present date?
+get_description: rather than the first <p> tag, leverage first 30 characters?
+gen_content_list: what date to use for non-markdown?
+X - use CFG_FILE vars for output directory, file names, etc
+

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# TODO use CFG_FILE vars for output directory, file names, etc
-# TODO: consolidate ssg with posts_gen. Or not? Use the same config?
 [ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 #[ -z "$IGNORE" ] && IGNORE=' ! -path "*/.*" ! -path "*/_*"'
@@ -12,7 +10,6 @@ function name_linkify
 	echo "$1" | awk '{print gensub("[[:space:]]", "-", "g", tolower($0))}'
 }
 
-# TODO: configurable to select the category html name format (include extension in link?)
 function gen_categories_htmls
 {
 	markdown_list="$1"; shift
@@ -42,7 +39,6 @@ function gen_archives_html
 {
 	markdown_list="$1"; shift
 	cat="$1"; shift
-	# TODO: category link in lowercase one-word format 
 	[ -z "$cat" ] && echo "<h1>Archives</h1>" || echo "<h1>$cat category</h1>"
 	echo "<p>"
 	sed '1d' "$markdown_list" | awk -F "$sep" -v cat="$cat" \
@@ -56,7 +52,6 @@ function gen_archives_html
 function gen_index_html
 {
 	markdown_list="$1"; shift
-	# TODO: category link in lowercase one-word format 
 	sed '1d' "$markdown_list" | awk -F "$sep" '{if ($1) {print \
 "<article class=\"hentry\">\n\
 	<header><h2 class=\"entry-title\">\n\
@@ -87,7 +82,7 @@ EOF
 			lastmod="$m" 
 		elif [ -n "$d" ]; then
 			lastmod="$d"
-		else # TODO: Assign other than present date?
+		else
 			lastmod="$(date '+%Y-%m-%d')"
 		fi
 		echo "<url><loc>$site_url$h</loc><lastmod>$lastmod</lastmod><priority>1.0</priority></url>"
@@ -96,7 +91,6 @@ EOF
 	echo "</urlset>"
 }
 
-# TODO: rather than the first <p> tag, leverage first 30 characters?
 function get_description
 {
 	start='sub("^.*<"s"*"t"("s"[^>]*)?>","")'
@@ -169,7 +163,6 @@ EOF
 }
 
 # TODO: $IGNORE directive in find not working
-# TODO: What date to use for non-markdown?
 function gen_content_list
 {
 	echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"

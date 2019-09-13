@@ -16,11 +16,11 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
+
 CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 [ -z "$IGNORE_FILE" ] && IGNORE_FILE=".ssgignore"
 
-# TODO: Command line options - redo for optional args, considering the config file
 main() {
 	[ -z "$2" ] && usage
  	test -d "$1" || no_dir "$1"
@@ -152,7 +152,6 @@ extract_metadata() {
     fi        
 }
 
-# TODO: process template vars for both header AND footer
 render_files() {
     SITE_TITLE="$3"
     BASE_URL="$4"
@@ -207,7 +206,7 @@ render_files() {
 				if test -x "$(which lowdown 2> /dev/null)"; then
 					# If metadata section starts with a yaml-metadata '---', remove for lowdown compatibility
 					sed '1{/^---/d}' "$input_file" | 
-					lowdown -D html-skiphtml -D html-head-ids -d autolink
+					lowdown -D html-skiphtml -D html-head-ids
 				elif test -x "$(which Markdown.pl 2> /dev/null)"; then
 					cat "$input_file" | Markdown.pl
 				else
