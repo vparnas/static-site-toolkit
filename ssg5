@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/bash
 #
 # Based on https://rgz.ee/bin/ssg5
 # Copyright 2018-2019 Roman Zolotarev <hi@romanzolotarev.com>
@@ -131,6 +131,20 @@ list_affected_files() {
 	fi
 }
 
+set_menu_items() {
+    [ -z "$MENU" ] && cat && return
+	menu_html=$( echo -n "<ul>\n"
+	i=0
+	while (( $i < ${#MENU[@]} )); do
+		href="${MENU[$i]}"
+		name="${MENU[$i+1]}"
+		echo -n "\t<li><a href=\"$href\">$name</a></li>\n"
+		i=$(( i+2 ))
+	done
+	echo -n "</ul>" )
+	sed "/nav.*menu/I{s#.*#\0\n$menu_html#}"
+}
+
 check_and_set_page_var() {
 	var=$1
 	value=$2
@@ -200,7 +214,8 @@ render_files() {
 					check_and_set_page_var "FEED_ATOM" "$FEED_ATOM" |
 					check_and_set_page_var "CANONICAL" "$canonical" |
 					check_and_set_page_var "FAV_ICON" "$FAV_ICON" |
-					check_and_set_page_var "MATHJAX" "$mathjax"
+					check_and_set_page_var "MATHJAX" "$mathjax" |
+					set_menu_items
 
 			if [ "$ext" = 'md' ]; then
 				if test -x "$(which lowdown 2> /dev/null)"; then
