@@ -7,26 +7,26 @@ sep="#"
 
 function name_linkify
 {
-	echo "$1" | awk '{print gensub("[[:space:]]", "-", "g", tolower($0))}'
+    echo "$1" | awk '{print gensub("[[:space:]]", "-", "g", tolower($0))}'
 }
 
 function escape_str
 {
-	sed -r 's/([\(\)"<>|])/\\\1/g' | tr -d '\n'
+    sed -r 's/([\(\)"<>|])/\\\1/g' | tr -d '\n'
 }
 
 # Uses 'declare' variable declarations to avoid conflicts with recursive calls
 function gen_idx_from_template
 {
-	metadata_list="$1"; shift
-	body_file="$1"; shift
+    metadata_list="$1"; shift
+    body_file="$1"; shift
     category="$1"
 
-	declare header_file="${body_file%%.*}.hdr"
-	declare footer_file="${body_file%%.*}.ftr"
-	[ ! -f $body_file ] && echo "$body_file doesn't exist" && return
-	[ -f "$header_file" ] && eval echo "$(escape_str < $header_file)"
-	declare body="$(escape_str < $body_file)"
+    declare header_file="${body_file%%.*}.hdr"
+    declare footer_file="${body_file%%.*}.ftr"
+    [ ! -f $body_file ] && echo "$body_file doesn't exist" && return
+    [ -f "$header_file" ] && eval echo "$(escape_str < $header_file)"
+    declare body="$(escape_str < $body_file)"
     if [[ "$body_file" =~ categories.html ]]; then
         cats_counts=$(sed '1d' "$metadata_list" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
         while read -r COUNT CATEGORY; do
@@ -51,73 +51,73 @@ function gen_idx_from_template
             eval echo "$body"
         done
     fi
-	[ -f "$footer_file" ] && eval echo "$(escape_str < $footer_file)"
+    [ -f "$footer_file" ] && eval echo "$(escape_str < $footer_file)"
 }
 
 function get_description
 {
-	start='sub("^.*<"s"*"t"("s"[^>]*)?>","")'
-	stop='sub("</"s"*"t""s"*>.*","") && x=1'
-	awk -v 's=[[:space:]]' -v 't=[Pp]' "$start,$stop;x{exit}"
+    start='sub("^.*<"s"*"t"("s"[^>]*)?>","")'
+    stop='sub("</"s"*"t""s"*>.*","") && x=1'
+    awk -v 's=[[:space:]]' -v 't=[Pp]' "$start,$stop;x{exit}"
 }
 
 function remove_tags
 {
-	sed 's#<[^>]*>##g;s#</[^>]*>##g'
+    sed 's#<[^>]*>##g;s#</[^>]*>##g'
 }
 
 function remove_nbsp
 {
-	sed 's#\&nbsp;# #g'
+    sed 's#\&nbsp;# #g'
 }
 
 function gen_rss
 {
-	metadata_list="$1"; shift
+    metadata_list="$1"; shift
 
-	html_dir="$PROD_OUT"
-	build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
+    html_dir="$PROD_OUT"
+    build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
 
-	[ ! -d "$html_dir" ] && echo "directory $html_dir nonexistant" && return
+    [ ! -d "$html_dir" ] && echo "directory $html_dir nonexistant" && return
 
-	cat <<EOF  
+    cat <<EOF  
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
-	<title>$SITE_TITLE</title>
-	<link>$PROD_BASE_URL</link>
-	<description></description>
-	<lastBuildDate>$build_date</lastBuildDate>
+    <title>$SITE_TITLE</title>
+    <link>$PROD_BASE_URL</link>
+    <description></description>
+    <lastBuildDate>$build_date</lastBuildDate>
     <atom:link href="$PROD_BASE_URL/${FEED_RSS#/}" rel="self" type="application/rss+xml" />
 EOF
-	IFS="#"
-	sed '1d' "$metadata_list" |
-	while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
+    IFS="#"
+    sed '1d' "$metadata_list" |
+    while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
         ([ -z "$DATE" ] || [ -z "$TITLE" ] || [ "$HREF" = "/" ]) && continue
-		post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$DATE")
-		site_url_no_lead="${PROD_BASE_URL##*/}"
-		if [ -n "$SUMMARY" ]; then 
+        post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$DATE")
+        site_url_no_lead="${PROD_BASE_URL##*/}"
+        if [ -n "$SUMMARY" ]; then 
             summary="$SUMMARY"
         else
-			html_path="$html_dir/$HREF"
-			[ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
-			summary=$(get_description < "$html_path" |
-				remove_tags | remove_nbsp )
+            html_path="$html_dir/$HREF"
+            [ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
+            summary=$(get_description < "$html_path" |
+                remove_tags | remove_nbsp )
         fi
-		cat <<EOF
-	<item>
-		<title>$TITLE</title>
-		<link>$PROD_BASE_URL$HREF</link>
-		<description><![CDATA[
-		$summary
-		]]></description>
-		<dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">$SITE_TITLE</dc:creator>
-		<pubDate>$post_date</pubDate>
-		<guid isPermaLink="false">tag:$site_url_no_lead,$DATE:$HREF</guid>
-	</item>
+        cat <<EOF
+    <item>
+        <title>$TITLE</title>
+        <link>$PROD_BASE_URL$HREF</link>
+        <description><![CDATA[
+        $summary
+        ]]></description>
+        <dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">$SITE_TITLE</dc:creator>
+        <pubDate>$post_date</pubDate>
+        <guid isPermaLink="false">tag:$site_url_no_lead,$DATE:$HREF</guid>
+    </item>
 EOF
-	done
+    done
 
-	cat <<EOF
+    cat <<EOF
 </channel></rss>
 EOF
 }
@@ -125,33 +125,33 @@ EOF
 # TODO: $IGNORE directive in find not working
 function gen_content_list
 {
-	LIST_HDR="DATE"$sep"MODIFIED"$sep"TITLE"$sep"HREF"$sep"CATEGORY"$sep"SUMMARY"
-	echo "$LIST_HDR"
+    LIST_HDR="DATE"$sep"MODIFIED"$sep"TITLE"$sep"HREF"$sep"CATEGORY"$sep"SUMMARY"
+    echo "$LIST_HDR"
     cd "$1" && find -L . ! -path "*/.*" ! -path "*/_*" -iregex '.*\.\(md\|html\)' -type f -exec awk -v sep="$sep" '
-	BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
+    BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
     {if (FILENAME !~ /\.md$/) nextfile}
-		/^date:/{d=$2} 
-		/^modified:/{m=$2} 
-		/^title:/{t=$2} 
-		/^category:/{c=$2} 
-		/^summary:/{s=$2} 
-		/^status:/{st=$2} 
-		/^\s*$/{nextfile}
-	END {
-	if (st ~ /draft/) exit;
-	href=FILENAME;
+        /^date:/{d=$2} 
+        /^modified:/{m=$2} 
+        /^title:/{t=$2} 
+        /^category:/{c=$2} 
+        /^summary:/{s=$2} 
+        /^status:/{st=$2} 
+        /^\s*$/{nextfile}
+    END {
+    if (st ~ /draft/) exit;
+    href=FILENAME;
     sub("\\/index\\..*$", "/", href);
     sub("\\.(md|html)$", "/", href);
-	sub("^\\.", "", href); 
-	print d sep m sep t sep href sep c sep s}' {} \; | sort -rn
+    sub("^\\.", "", href); 
+    print d sep m sep t sep href sep c sep s}' {} \; | sort -rn
 }
 
 function help
 {
-	echo "-c <dir path>: generate content list in a CSV"
-	echo "-r <csv>: generate rss"
-	echo "-x <csv> <template>: generate an index (dated list) file based on template"
-	echo "-h: this help"
+    echo "-c <dir path>: generate content list in a CSV"
+    echo "-r <csv>: generate rss"
+    echo "-x <csv> <template>: generate an index (dated list) file based on template"
+    echo "-h: this help"
 }
 
 [ -n "$1" ] && [ -z "$2" ] && help && exit 1
