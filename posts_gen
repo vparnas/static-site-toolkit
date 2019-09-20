@@ -10,85 +10,48 @@ function name_linkify
 	echo "$1" | awk '{print gensub("[[:space:]]", "-", "g", tolower($0))}'
 }
 
-function gen_categories_htmls
+function escape_str
 {
-	markdown_list="$1"; shift
-    base_dir="$1"; shift
-	out_dir="$1"; shift
-	main_html="$1"; shift
-	[ -n "$out_dir" ] && out_dir="${out_dir%/}" || out_dir=""
-	[ -z "$main_html" ] && main_html="categories.html"
-    main_html="$base_dir/$out_dir/$main_html" 
-
-	echo -e "<h1>Categories</h1>\n<ul>" > "$main_html"
-	cats_counts=$(sed '1d' "$markdown_list" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
-	while read -r count cat; do
-		cat_url="$out_dir/"$(name_linkify "$cat")
-		echo "Generating $cat_url.html"
-		gen_archives_html "$markdown_list" "$cat" > "$base_dir/$cat_url.html"
-		echo "<li><a href='/$cat_url/'>$cat</a> ($count)</li>" >> "$main_html"
-	done <<< "$cats_counts"
-	echo "</ul>" >> "$main_html"
-	echo "Generating $main_html"
+	sed -r 's/([\(\)"<>|])/\\\1/g' | tr -d '\n'
 }
 
-# Generate an archives file for all or specific category
-# $1: posts CSV
-# $2: (optional) category
-function gen_archives_html
+# Uses 'declare' variable declarations to avoid conflicts with recursive calls
+function gen_idx_from_template
 {
-	markdown_list="$1"; shift
-	cat="$1"; shift
-	[ -z "$cat" ] && echo "<h1>Archives</h1>" || echo "<h1>$cat category</h1>"
-	echo "<p>"
-	sed '1d' "$markdown_list" | awk -F "$sep" -v cat="$cat" \
-		'{if ($1 && (!cat || tolower($5) == tolower(cat)))\
-			{print ""$1" | <a href=\""$4"\" title=\""$3"\">"$3"</a>";\
-			if (!cat) print " | "$5; print "<br/>"}}'
-	echo "</p>"
-	
-}
+	metadata_list="$1"; shift
+	body_file="$1"; shift
+    category="$1"
 
-function gen_index_html
-{
-	markdown_list="$1"; shift
-	sed '1d' "$markdown_list" | awk -F "$sep" '{if ($1) {print \
-"<article class=\"hentry\">\n\
-	<header><h2 class=\"entry-title\">\n\
-		<a href=\""$4"\" title=\""$3"\">"$3"</a></h2>\n\
-	</header>\n\
-	<footer class=\"post-info\">\n\
-		<time class=\"published\" datetime=\""$1"\">"$1"</time>"; \
-	if ($5) print "\
-		| Category: "$5; print "\
-	</footer>\n</article>\n"}}'
-}
-
-function gen_sitemap
-{
-	markdown_list="$1"; shift
-	site_url="$1"; shift
-    cat <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
-http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"
-xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-EOF
-	IFS="#"
-	sed '1d' "$markdown_list" |
-	while read -r d m _ h _ _; do
-        if [ -n "$m" ]; then
-			lastmod="$m" 
-		elif [ -n "$d" ]; then
-			lastmod="$d"
-		else
-			lastmod="$(date '+%Y-%m-%d')"
-		fi
-		echo "<url><loc>$site_url$h</loc><lastmod>$lastmod</lastmod><priority>1.0</priority></url>"
-	done
-
-	echo "</urlset>"
+	declare header_file="${body_file%%.*}.hdr"
+	declare footer_file="${body_file%%.*}.ftr"
+	[ ! -f $body_file ] && echo "$body_file doesn't exist" && return
+	[ -f "$header_file" ] && eval echo "$(escape_str < $header_file)"
+	declare body="$(escape_str < $body_file)"
+    if [[ "$body_file" =~ categories.html ]]; then
+        cats_counts=$(sed '1d' "$metadata_list" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
+        while read -r COUNT CATEGORY; do
+            CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
+            gen_idx_from_template "$metadata_list" "$TEMPLATE_DIR/category.html" "$CATEGORY" > "$INPUTDIR/$CATEGORY_URL.html"
+            eval echo "$body"
+        done <<< "$cats_counts"
+    else
+        declare IFS="#"
+        sed '1d' "$metadata_list" |
+        while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
+            # Skip entries without a date if the template expects one
+            [[ "$body" =~ \$DATE ]] && [ -z "$DATE" ] && continue
+            [[ "$body_file" =~ category.html ]] && [ ! "$CATEGORY" == "$category" ] && continue
+            if [ -z "$MODIFIED" ]; then
+                if [ -n "$DATE" ]; then
+                    MODIFIED="$DATE"
+                else
+                    MODIFIED="$(date '+%Y-%m-%d')"
+                fi
+            fi
+            eval echo "$body"
+        done
+    fi
+	[ -f "$footer_file" ] && eval echo "$(escape_str < $footer_file)"
 }
 
 function get_description
@@ -110,11 +73,9 @@ function remove_nbsp
 
 function gen_rss
 {
-	markdown_list="$1"; shift
-	html_dir="$1"; shift
-	site_title="$1"; shift
-	site_url="$1"; shift
-    feed_url="$1"; shift
+	metadata_list="$1"; shift
+
+	html_dir="$PROD_OUT"
 	build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
 
 	[ ! -d "$html_dir" ] && echo "directory $html_dir nonexistant" && return
@@ -122,37 +83,36 @@ function gen_rss
 	cat <<EOF  
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
-	<title>$site_title</title>
-	<link>$site_url</link>
+	<title>$SITE_TITLE</title>
+	<link>$PROD_BASE_URL</link>
 	<description></description>
 	<lastBuildDate>$build_date</lastBuildDate>
-    <atom:link href="$site_url/${feed_url#/}" rel="self" type="application/rss+xml" />
+    <atom:link href="$PROD_BASE_URL/${FEED_RSS#/}" rel="self" type="application/rss+xml" />
 EOF
-
 	IFS="#"
-	sed '1d' "$markdown_list" |
-	while read -r d m t h c s; do
-        ([ -z "$d" ] || [ -z "$t" ] || [ "$h" = "/" ]) && continue
-		post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$d")
-		site_url_no_lead="${site_url##*/}"
-		if [ -n "$s" ]; then 
-            summary="$s"
+	sed '1d' "$metadata_list" |
+	while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
+        ([ -z "$DATE" ] || [ -z "$TITLE" ] || [ "$HREF" = "/" ]) && continue
+		post_date=$(date '+%a, %d %b %Y %H:%M:%S %z' -d "$DATE")
+		site_url_no_lead="${PROD_BASE_URL##*/}"
+		if [ -n "$SUMMARY" ]; then 
+            summary="$SUMMARY"
         else
-			html_path="$html_dir/$h"
+			html_path="$html_dir/$HREF"
 			[ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
 			summary=$(get_description < "$html_path" |
 				remove_tags | remove_nbsp )
         fi
 		cat <<EOF
 	<item>
-		<title>$t</title>
-		<link>$site_url$h</link>
+		<title>$TITLE</title>
+		<link>$PROD_BASE_URL$HREF</link>
 		<description><![CDATA[
 		$summary
 		]]></description>
-		<dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">$site_title</dc:creator>
+		<dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">$SITE_TITLE</dc:creator>
 		<pubDate>$post_date</pubDate>
-		<guid isPermaLink="false">tag:$site_url_no_lead,$d:$h</guid>
+		<guid isPermaLink="false">tag:$site_url_no_lead,$DATE:$HREF</guid>
 	</item>
 EOF
 	done
@@ -165,7 +125,8 @@ EOF
 # TODO: $IGNORE directive in find not working
 function gen_content_list
 {
-	echo "date"$sep"modified"$sep"title"$sep"href"$sep"category"$sep"summary"
+	LIST_HDR="DATE"$sep"MODIFIED"$sep"TITLE"$sep"HREF"$sep"CATEGORY"$sep"SUMMARY"
+	echo "$LIST_HDR"
     cd "$1" && find -L . ! -path "*/.*" ! -path "*/_*" -iregex '.*\.\(md\|html\)' -type f -exec awk -v sep="$sep" '
 	BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
     {if (FILENAME !~ /\.md$/) nextfile}
@@ -188,26 +149,19 @@ function gen_content_list
 function help
 {
 	echo "-c <dir path>: generate content list in a CSV"
-	echo "-a <csv> [category]: generate archives file"
-	echo "-i <csv>: generate index file"
-	echo "-r <csv> <html dir> <site title> <site url> <feed url>: generate rss"
-	echo "-m <csv> <site url>: generate site map"
-	echo "-C <csv> <base dir> [rel output dir] [categories.html] : generate categories indices"
+	echo "-r <csv>: generate rss"
+	echo "-x <csv> <template>: generate an index (dated list) file based on template"
 	echo "-h: this help"
 }
 
 [ -n "$1" ] && [ -z "$2" ] && help && exit 1
 
-while getopts "achiCrm" o; do 
+getopts "chxr" o &&
     case "${o}" in
-        a) gen_archives_html "${@:2}"; exit 0;;
         c) gen_content_list "$2"; exit 0;;
-        C) gen_categories_htmls "${@:2}"; exit 0;;
-        i) gen_index_html "$2"; exit 0;;
-        r) [ -n "$5" ] && gen_rss "${@:2}" || help; exit 0;;
-        m) [ -n "$3" ] && gen_sitemap "${@:2}" || help; exit 0;;
+        x) gen_idx_from_template "${@:2}"; exit 0;;
+        r) gen_rss "$2"; exit 0;;
         h|*) help; exit 0;;
-    esac 
-done
+    esac
 
 help
