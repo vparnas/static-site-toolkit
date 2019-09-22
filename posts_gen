@@ -148,20 +148,20 @@ function gen_content_list
 
 function help
 {
-    echo "-c <dir path>: generate content list in a CSV"
-    echo "-r <csv>: generate rss"
-    echo "-x <csv> <template>: generate an index (dated list) file based on template"
-    echo "-h: this help"
+    echo "-c|--gen-content <dir path>: generate content list in a CSV"
+    echo "-r|--rss <csv>: generate rss"
+    echo "-x|--index <csv> <template>: generate an index (dated list) file based on template"
+    echo "-h|--help: this help"
 }
 
-[ -n "$1" ] && [ -z "$2" ] && help && exit 1
+[ -z "$2" ] && help && exit 1
 
-getopts "chxr" o &&
-    case "${o}" in
-        c) gen_content_list "$2"; exit 0;;
-        x) gen_idx_from_template "${@:2}"; exit 0;;
-        r) gen_rss "$2"; exit 0;;
-        h|*) help; exit 0;;
-    esac
+cmd="$1"; shift
+case "$cmd" in
+    -c|--gen-content) gen_content_list "$1"; exit 0;;
+    -x|--index) gen_idx_from_template "$@"; exit 0;;
+    -r|--rss) gen_rss "$1"; exit 0;;
+    -h|--help|*) help; exit 0;;
+esac
 
 help
