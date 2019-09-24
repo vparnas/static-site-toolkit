@@ -16,15 +16,14 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-
 CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 [ -z "$IGNORE_FILE" ] && IGNORE_FILE=".ssgignore"
 
 main() {
 	[ -z "$2" ] && usage
- 	test -d "$1" || no_dir "$1"
- 	test -d "$2" || no_dir "$2"
+ 	[ -d "$1" ] || no_dir "$1"
+ 	[ -d "$2" ] || no_dir "$2"
 	src=$(readlink_f "$1")
 	dst=$(readlink_f "$2")
 	[ -n "$3" ] && SITE_TITLE="$3"
@@ -54,7 +53,7 @@ main() {
 		echo "$fs" | grep -iE '\.md$|\.html$' | 
 			render_files "$src" "$dst" "$SITE_TITLE" "$BASE_URL"
 		echo "$fs" | grep -iEv '\.md$|\.html$' |
-			(cd "$src" && cpio -dpuL "$dst") # -L and -d necessary for simlinked contents
+			(cd "$src" && cpio -dpuL "$dst")
 	fi
 	printf '[ssg] ' >&2
 	print_status 'file, ' 'files, ' "$fs" >&2
@@ -62,7 +61,6 @@ main() {
 	print_status 'url' 'urls' "$urls" >&2
 	echo >&2
 }
-
 
 readlink_f() {
 	file="$1"
@@ -170,13 +168,11 @@ render_files() {
     SITE_TITLE="$3"
     BASE_URL="$4"
 
-#   filefull=$(basename -- "$1")
-#   filename="${filefull%.*}"
 	while read -r f; do
 		echo "Processing: $f"
         # Create a separate dir/index.html for each md document except those exclusively named index.md
-		echo "$f" | grep -q 'index\..*' \
-			&& page_url="${f%\index.*}" || page_url="${f%\.*}/"
+		[[ "$f" =~ index\..*$ ]] \
+			&& page_url="${f%index*}" || page_url="${f%.*}/"
 		page_url="${page_url#.}" # remove leading . in url
 		dst_file_dir="$2/$page_url"
         dst_file="$dst_file_dir""index.html"
@@ -239,12 +235,6 @@ render_files() {
 links_rel_to_abs() {
 	BASE_URL="$1"
 	sed -r 's#((href|src)[[:space:]]*=[[:space:]]*["'"'"'])\/#\1'"$BASE_URL"'\/#ig'
-}
-
-list_pages() {
-	e="\\( -name '*.html' -o -name '*.md' \\)"
-	cd "$1" && eval "find -L . -type f $IGNORE $e" |
-	sed 's#^./##;s#.md$#.html#;s#/index.html$#/#'
 }
 
 main "$@"

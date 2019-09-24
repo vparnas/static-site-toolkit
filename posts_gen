@@ -61,14 +61,9 @@ function get_description
     awk -v 's=[[:space:]]' -v 't=[Pp]' "$start,$stop;x{exit}"
 }
 
-function remove_tags
+function remove_tags_nbsp
 {
-    sed 's#<[^>]*>##g;s#</[^>]*>##g'
-}
-
-function remove_nbsp
-{
-    sed 's#\&nbsp;# #g'
+    sed 's#<[^>]*>##g;s#</[^>]*>##g; s#\&nbsp;# #g'
 }
 
 function gen_rss
@@ -100,8 +95,7 @@ EOF
         else
             html_path="$html_dir/$HREF"
             [ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
-            summary=$(get_description < "$html_path" |
-                remove_tags | remove_nbsp )
+            summary=$(get_description < "$html_path" | remove_tags_nbsp)
         fi
         cat <<EOF
     <item>
