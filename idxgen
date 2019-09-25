@@ -130,7 +130,6 @@ EOF
 EOF
 }
 
-# TODO: $IGNORE directive in find not working
 function gen_content_list
 {
     LIST_HDR="DATE"$sep"MODIFIED"$sep"TITLE"$sep"HREF"$sep"CATEGORY"$sep"SUMMARY"
