@@ -19,41 +19,36 @@
 CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 [ -z "$IGNORE_FILE" ] && IGNORE_FILE=".ssgignore"
+[ -z "$INPUTDIR" ] && INPUTDIR="."
+[ -z "$HEADER" ] && export HEADER="$INPUTDIR/_header.html"
+[ -z "$FOOTER" ] && export FOOTER="$INPUTDIR/_footer.html"
 
 main() {
-    [ -z "$2" ] && usage
-    [ -d "$1" ] || no_dir "$1"
-    [ -d "$2" ] || no_dir "$2"
-    src=$(readlink_f "$1")
-    dst=$(readlink_f "$2")
-    [ -n "$3" ] && SITE_TITLE="$3"
-    [ -n "$4" ] && BASE_URL="$4"
-
     IGNORE=$(
-        if [ -f "$src/$IGNORE_FILE" ]; then
+        if [ -f "$SRC/$IGNORE_FILE" ]; then
             while read -r x; do
                 [ -n "$x" ] || continue
                 printf ' ! -path "*/%s*"' "$x"
-            done < "$src/$IGNORE_FILE"
+            done < "$SRC/$IGNORE_FILE"
         fi
         printf ' ! -name "."  ! -path "*/.*" ! -path "*/_*"'
     )
-    [ -z "$HEADER" ] && export HEADER="$src/_header.html"
-    [ -z "$FOOTER" ] && export FOOTER="$src/_footer.html"
-    list_dirs "$src" | (cd "$src" && cpio -dpuL "$dst")
+    list_dirs "$SRC" | (cd "$SRC" && cpio -dpuL "$DST")
     fs=$(
-        if [ -f "$dst/.files" ]; then
-            list_affected_files "$src" "$dst/.files"
+        if [ -f "$DST/.files" ]; then
+            list_affected_files "$SRC" "$DST/.files"
         else 
             list_files "$1"
         fi
     )
     if [ -n "$fs" ]; then
-        echo "$fs" | tee "$dst/.files"
-        echo "$fs" | grep -iE '\.md$|\.html$' | 
-            render_files "$src" "$dst" "$SITE_TITLE" "$BASE_URL"
+        echo "$fs" | tee "$DST/.files"
+        echo "$fs" | grep -iE '\.md$|\.html$' |
+            while read -r f; do
+                render_file "$f"
+            done
         echo "$fs" | grep -iEv '\.md$|\.html$' |
-            (cd "$src" && cpio -dpuL "$dst")
+            (cd "$SRC" && cpio -dpuL "$DST")
     fi
     printf '[ssg] ' >&2
     print_status 'file, ' 'files, ' "$fs" >&2
@@ -81,8 +76,10 @@ print_status() {
 
     echo "$3" | awk -v singular="$1" -v plural="$2" '
     END {
-        if (NR==1) printf NR " " singular
-        if (NR>1) printf NR " " plural
+        if (NR==1) 
+            printf NR " " singular;
+        else if (NR>1) 
+            printf NR " " plural;
     }'
 }
 
@@ -164,72 +161,68 @@ extract_metadata() {
     fi        
 }
 
-render_files() {
-    SITE_TITLE="$3"
-    BASE_URL="$4"
+render_file() {
+    f="$1"
+    echo "Processing: $f"
+    # Create a separate <name>/index.html for each name.md document except those exclusively named index.md
+    [[ "$f" =~ index\..*$ ]] \
+        && page_url="${f%index*}" || page_url="${f%.*}/"
+    page_url="${page_url#.}" # remove leading . in url
+    dst_file_dir="$DST/$page_url"
+    dst_file="$dst_file_dir""index.html"
+    input_file="$SRC/$f"
 
-    while read -r f; do
-        echo "Processing: $f"
-        # Create a separate dir/index.html for each md document except those exclusively named index.md
-        [[ "$f" =~ index\..*$ ]] \
-            && page_url="${f%index*}" || page_url="${f%.*}/"
-        page_url="${page_url#.}" # remove leading . in url
-        dst_file_dir="$2/$page_url"
-        dst_file="$dst_file_dir""index.html"
-        input_file="$1/$f"
+    extract_metadata "status" "$input_file" |
+        grep -qi 'draft' && echo "Skip draft $f" && return
+    [ -d "$dst_file_dir" ] || mkdir -p "$dst_file_dir"
+    
+    pagetitle="$SITE_TITLE"
+    content_title=""
+    ext="${f##*.}"
+    if [ "$ext" = "md" ]; then
+        content_title=$(extract_metadata "title" "$input_file")
+        [ -n "$content_title" ] && pagetitle="$SITE_TITLE - $content_title"
+    elif [ "$ext" = "html" ]; then
+        first_h1=$(sed -rn '/<h1>.*<\/h1>/I{s/<h1>(.*)<\/h1>/\1/ip;q}' "$input_file")
+        [ -n "$first_h1" ] && pagetitle="$SITE_TITLE - $first_h1"
+    fi
+    pagedate=$(extract_metadata "date" "$input_file")
+    canonical=$(extract_metadata "canonical" "$input_file")
+    mathjax=$(extract_metadata "mathjax" "$input_file")
+    category=$(extract_metadata "category" "$input_file")
+    (
+    [ -f "$HEADER" ] && 
+        cat "$HEADER" |
+        sed -e 's#\$SITETITLE#'"$SITE_TITLE"'#g' \
+        -e 's#\$PAGETITLE#'"$pagetitle"'#g'\
+        -e 's#\$SITEURL#'"$BASE_URL"'#g'\
+        -e 's#\$PAGEURL#'"$page_url"'#g' |
+        check_and_set_page_var "CONTENT_TITLE" "$content_title" |
+        check_and_set_page_var "DATE" "$pagedate" |
+        check_and_set_page_var "CATEGORY" "$category" |
+        check_and_set_page_var "FEED_RSS" "$FEED_RSS" |
+        check_and_set_page_var "FEED_ATOM" "$FEED_ATOM" |
+        check_and_set_page_var "CANONICAL" "$canonical" |
+        check_and_set_page_var "FAV_ICON" "$FAV_ICON" |
+        check_and_set_page_var "MATHJAX" "$mathjax" |
+        set_menu_items
 
-        extract_metadata "status" "$input_file" |
-            grep -qi 'draft' && echo "Skip draft $f" && continue
-        [ -d "$dist_file_dir" ] || mkdir -p "$dst_file_dir"
-        
-        pagetitle="$SITE_TITLE"
-        content_title=""
-        ext="${f##*.}"
-        if [ "$ext" = "md" ]; then
-            content_title=$(extract_metadata "title" "$input_file")
-            [ -n "$content_title" ] && pagetitle="$SITE_TITLE - $content_title"
-        elif [ "$ext" = "html" ]; then
-            first_h1=$(sed -rn '/<h1>.*<\/h1>/I{s/<h1>(.*)<\/h1>/\1/ip;q}' "$input_file")
-            [ -n "$first_h1" ] && pagetitle="$SITE_TITLE - $first_h1"
+    if [ "$ext" = 'md' ]; then
+        if test -x "$(which lowdown 2> /dev/null)"; then
+            # If metadata section starts with a yaml-metadata '---', remove for lowdown compatibility
+            sed '1{/^---/d}' "$input_file" | 
+                lowdown -D html-skiphtml -D html-head-ids
+        elif test -x "$(which Markdown.pl 2> /dev/null)"; then
+            cat "$input_file" | Markdown.pl
+        else
+            echo "couldn't find lowdown nor Markdown.pl"
+            exit 3
         fi
-        pagedate=$(extract_metadata "date" "$input_file")
-        canonical=$(extract_metadata "canonical" "$input_file")
-        mathjax=$(extract_metadata "mathjax" "$input_file")
-        category=$(extract_metadata "category" "$input_file")
-        (
-            [ -f "$HEADER" ] && 
-                cat "$HEADER" |
-                sed -e 's#\$SITETITLE#'"$SITE_TITLE"'#g' \
-                    -e 's#\$PAGETITLE#'"$pagetitle"'#g'\
-                    -e 's#\$SITEURL#'"$BASE_URL"'#g'\
-                    -e 's#\$PAGEURL#'"$page_url"'#g' |
-                    check_and_set_page_var "CONTENT_TITLE" "$content_title" |
-                    check_and_set_page_var "DATE" "$pagedate" |
-                    check_and_set_page_var "CATEGORY" "$category" |
-                    check_and_set_page_var "FEED_RSS" "$FEED_RSS" |
-                    check_and_set_page_var "FEED_ATOM" "$FEED_ATOM" |
-                    check_and_set_page_var "CANONICAL" "$canonical" |
-                    check_and_set_page_var "FAV_ICON" "$FAV_ICON" |
-                    check_and_set_page_var "MATHJAX" "$mathjax" |
-                    set_menu_items
-
-            if [ "$ext" = 'md' ]; then
-                if test -x "$(which lowdown 2> /dev/null)"; then
-                    # If metadata section starts with a yaml-metadata '---', remove for lowdown compatibility
-                    sed '1{/^---/d}' "$input_file" | 
-                    lowdown -D html-skiphtml -D html-head-ids
-                elif test -x "$(which Markdown.pl 2> /dev/null)"; then
-                    cat "$input_file" | Markdown.pl
-                else
-                    echo "couldn't find lowdown nor Markdown.pl"
-                    exit 3
-                fi
-            elif [ "$ext" = 'html' ]; then
-                cat "$input_file"
-            fi
-            [ -f "$FOOTER" ] && cat "$FOOTER"
-        ) | links_rel_to_abs "$BASE_URL" > "$dst_file" 
-    done
+    elif [ "$ext" = 'html' ]; then
+        cat "$input_file"
+    fi
+    [ -f "$FOOTER" ] && cat "$FOOTER"
+    ) | links_rel_to_abs "$BASE_URL" > "$dst_file" 
 }
 
 links_rel_to_abs() {
@@ -237,4 +230,11 @@ links_rel_to_abs() {
     sed -r 's#((href|src)[[:space:]]*=[[:space:]]*["'"'"'])\/#\1'"$BASE_URL"'\/#ig'
 }
 
+[ -z "$2" ] && usage
+[ -d "$1" ] || no_dir "$1"
+[ -d "$2" ] || no_dir "$2"
+[ -n "$3" ] && export SITE_TITLE="$3"
+[ -n "$4" ] && export BASE_URL="$4"
+SRC=$(readlink_f "$1")
+DST=$(readlink_f "$2")
 main "$@"

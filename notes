@@ -1,16 +1,17 @@
+# vim: set filetype=markdown : 
+
 # TODO
 
-ssg5: process template vars in the global footer template.
-errors: write to stderr
-ssg5: command line options - redo for optional args, considering the config file
-provide defaults: Makefile, .ssgconfig, templates, headers, footers, content list file. Include sample site?
-include link-cross-postings utility as part of suite
-gen_content_list: $IGNORE directive in find not working
+1. ssg5: process template vars in the global footer template.
+1. ssg5: command line options - redo for optional args, considering the config file
+1. provide defaults: Makefile, .ssgconfig, templates, headers, footers, content list file. Include sample site?
+1. include link-cross-postings utility as part of suite
+1. gen_content_list: $IGNORE directive in find not working
 
 # Ideas
 
-Leverage a global def list of link definitions
-configurable to select the category html name format (include extension in link?)
-Templates containing categories: incorporate category links
-gen_content_list: what date to use for non-markdown? appeal to date set in content file?
-X - use CFG_FILE vars for output directory, file names, etc
+1. Leverage a global def list of link definitions
+1. configurable to select the category html name format (include extension in link?)
+1. Templates containing categories: incorporate category links
+1. gen_content_list: what date to use for non-markdown? appeal to date set in content file?
+1. X - use CFG_FILE vars for output directory, file names, etc

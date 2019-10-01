@@ -38,7 +38,10 @@ function gen_idx_from_template
 
     declare header_file="${body_file%%.*}.hdr"
     declare footer_file="${body_file%%.*}.ftr"
-    [ ! -f $body_file ] && echo "$body_file doesn't exist" && return
+    if [ ! -f $body_file ]; then
+        echo "$body_file doesn't exist" >&2
+        return
+    fi
     [ -f "$header_file" ] && eval "echo -e $(escape_str < $header_file)"
     declare body="$(escape_str < $body_file)"
     if [[ "$body_file" =~ categories.html ]]; then
@@ -87,8 +90,10 @@ function gen_rss
     html_dir="$PROD_OUT"
     build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
 
-    [ ! -d "$html_dir" ] && echo "directory $html_dir nonexistant" && return
-
+    if [ ! -d "$html_dir" ]; then
+        echo "directory $html_dir nonexistent" >&2
+        return
+    fi
     cat <<EOF  
 <?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
@@ -155,10 +160,12 @@ function gen_content_list
 
 function help
 {
-    echo "-c|--gen-content <dir path>: generate content list in a CSV"
-    echo "-r|--rss <csv>: generate rss"
-    echo "-x|--index <csv> <template>: generate an index (dated list) file based on template"
-    echo "-h|--help: this help"
+    cat <<EOF
+    -c|--gen-content <dir path>: generate content list in a CSV
+    -r|--rss <csv>: generate rss
+    -x|--index <csv> <template>: generate an index (dated list) file based on template
+    -h|--help: this help
+EOF
 }
 
 [ -z "$2" ] && help && exit 1
