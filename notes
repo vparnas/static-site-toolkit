@@ -7,6 +7,8 @@
 1. provide defaults: Makefile, .ssgconfig, templates, headers, footers, content list file. Include sample site?
 1. include link-cross-postings utility as part of suite
 1. gen_content_list: $IGNORE directive in find not working
+1. Incorporate the link_cross_postings::fix_links routine into Makefile via implicit variables
+1. assert no leading slash in Makefile $(FEED_RSS)
 
 # Ideas
 
