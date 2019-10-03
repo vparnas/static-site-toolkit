@@ -19,9 +19,6 @@
 CFG_FILE="./.ssg_config"
 [ -f "$CFG_FILE" ] && . "$CFG_FILE" # source config file if available
 [ -z "$IGNORE_FILE" ] && IGNORE_FILE=".ssgignore"
-[ -z "$INPUTDIR" ] && INPUTDIR="."
-[ -z "$HEADER" ] && export HEADER="$INPUTDIR/_header.html"
-[ -z "$FOOTER" ] && export FOOTER="$INPUTDIR/_footer.html"
 
 main() {
     IGNORE=$(
@@ -33,6 +30,7 @@ main() {
         fi
         printf ' ! -name "."  ! -path "*/.*" ! -path "*/_*"'
     )
+    # Replicate $SRC directory structure in $DST
     list_dirs "$SRC" | (cd "$SRC" && cpio -dpuL "$DST")
     fs=$(
         if [ -f "$DST/.files" ]; then
@@ -162,18 +160,18 @@ extract_metadata() {
 }
 
 render_file() {
-    f="$1"
-    echo "Processing: $f"
+    source_html="$1"
+    echo "Processing: $source_html"
     # Create a separate <name>/index.html for each name.md document except those exclusively named index.md
-    [[ "$f" =~ index\..*$ ]] \
+    [[ "$source_html" =~ index\..*$ ]] \
         && page_url="${f%index*}" || page_url="${f%.*}/"
     page_url="${page_url#.}" # remove leading . in url
     dst_file_dir="$DST/$page_url"
     dst_file="$dst_file_dir""index.html"
-    input_file="$SRC/$f"
+    input_file="$SRC/$source_html"
 
     extract_metadata "status" "$input_file" |
-        grep -qi 'draft' && echo "Skip draft $f" && return
+        grep -qi 'draft' && echo "Skip draft $source_html" && return
     [ -d "$dst_file_dir" ] || mkdir -p "$dst_file_dir"
     
     pagetitle="$SITE_TITLE"
@@ -191,8 +189,8 @@ render_file() {
     mathjax=$(extract_metadata "mathjax" "$input_file")
     category=$(extract_metadata "category" "$input_file")
     (
-    [ -f "$HEADER" ] && 
-        cat "$HEADER" |
+    [ -f "$SRC/$HEADER" ] && 
+        cat "$SRC/$HEADER" |
         sed -e 's#\$SITETITLE#'"$SITE_TITLE"'#g' \
         -e 's#\$PAGETITLE#'"$pagetitle"'#g'\
         -e 's#\$SITEURL#'"$BASE_URL"'#g'\
@@ -221,7 +219,7 @@ render_file() {
     elif [ "$ext" = 'html' ]; then
         cat "$input_file"
     fi
-    [ -f "$FOOTER" ] && cat "$FOOTER"
+    [ -f "$SRC/$FOOTER" ] && cat "$SRC/$FOOTER"
     ) | links_rel_to_abs "$BASE_URL" > "$dst_file" 
 }
 
@@ -237,4 +235,8 @@ links_rel_to_abs() {
 [ -n "$4" ] && export BASE_URL="$4"
 SRC=$(readlink_f "$1")
 DST=$(readlink_f "$2")
+[ -z "$HEADER" ] && export HEADER="_header.html"
+[ -z "$FOOTER" ] && export FOOTER="_footer.html"
+
 main "$@"
+
