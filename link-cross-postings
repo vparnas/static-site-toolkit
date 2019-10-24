@@ -21,13 +21,13 @@ function fix_links
 {
     [ ! -d "$LCP_RENDERED_DIR" ] && echo "\$LCP_RENDERED_DIR does not exist" && exit
     [ -z "$REMOVE_REGEX" ] && echo "Nothing defined for \$REMOVE_REGEX. Exiting" && exit
-	echo "$0: Executing, will indicate any modified content..."
+	echo "${0##*/}: Executing, will indicate any modified content..."
     grep -Ei '(md|html)$' |
     while read -r t; do
         source_file="${t##*/}" # Extract just the filename portion
         source_file="$LCP_RENDERED_DIR/${source_file%.*}/index.html"
 		grep -q "$REMOVE_REGEX" $source_file && 
-			echo "$0: Updating links in $source_file." &&
+			echo "${0##*/}: Updating links in $source_file." &&
 			sed -i "s#$REMOVE_REGEX##g" "$source_file"
     done
 	touch "$LCP_RENDERED_DIR/$TSTAMP_FILE"

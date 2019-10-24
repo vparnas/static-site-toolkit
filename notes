@@ -7,7 +7,6 @@
 1. gen_content_list: $IGNORE directive in find not working
 1. Incorporate the link_cross_postings::fix_links routine into Makefile via implicit variables
 1. assert no leading slash in Makefile $(FEED_RSS)
-1. Makefile: s3_upload enable only if S3_BUCKET defined
 
 # Ideas
 

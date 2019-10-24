@@ -11,6 +11,8 @@ FEED_RSS=feeds/rss.xml # Comment out to disable RSS generation
 #S3_BUCKET=
 DEV_BASE_URL="http://localhost:8080"
 PROD_BASE_URL="https://mysite.com"
+HEADER=_header.html
+FOOTER=_footer.html
 MENU=( "/projects/" "Projects"\
         "/categories/" "Categories"\
         "/contact/" "Contact"\
