@@ -129,14 +129,19 @@ function gen_content_list
     LIST_HDR="DATE"$sep"MODIFIED"$sep"TITLE"$sep"HREF"$sep"CATEGORY"$sep"SUMMARY"
     echo "$LIST_HDR"
     cd "$1" && find -L . ! -path "*/.*" ! -path "*/_*" -iregex '.*\.\(md\|html\)' -type f -exec awk -v sep="$sep" '
-    BEGIN {IGNORECASE=1; FS=":[[:space:]]*"}
+    BEGIN {IGNORECASE=1}
     {if (FILENAME !~ /\.md$/) nextfile}
-        /^date:/{d=$2} 
-        /^modified:/{m=$2} 
-        /^title:/{t=$2} 
-        /^category:/{c=$2} 
-        /^summary:/{s=$2} 
-        /^status:/{st=$2} 
+    {
+        sub(/[ \t]+$/,""); // Trim trailing spaces
+        val=$0;
+        sub(/^\w+:\s*/, "", val); // Trim all but the metadata value
+    }
+        /^date:/{d=val} 
+        /^modified:/{m=val} 
+        /^title:/{t=val} 
+        /^category:/{c=val} 
+        /^summary:/{s=val} 
+        /^status:/{st=val} 
         /^\s*$/{nextfile}
     END {
     if (st ~ /draft/) exit;
