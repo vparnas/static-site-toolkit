@@ -120,7 +120,9 @@ set_menu_items() {
     while (( $i < ${#MENU[@]} )); do
         href="${MENU[$i]}"
         name="${MENU[$i+1]}"
-        echo -n "\t<li><a href=\"$href\">$name</a></li>\n"
+        echo -n "\t"
+        (( i>0 )) && echo -n "| "
+        echo -n "<li><a href=\"$href\">$name</a></li>\n"
         i=$(( i+2 ))
     done
     echo -n "</ul>" )
@@ -173,6 +175,7 @@ render_file() {
         first_h1=$(sed -rn '/<h1>.*<\/h1>/I{s/<h1>(.*)<\/h1>/\1/ip;q}' "$input_file")
         [ -n "$first_h1" ] && pagetitle="$SITE_TITLE - $first_h1"
     fi
+    author=$(extract_metadata "author" "$input_file")
     pagedate=$(extract_metadata "date" "$input_file")
     canonical=$(extract_metadata "canonical" "$input_file")
     mathjax=$(extract_metadata "mathjax" "$input_file")
@@ -185,6 +188,7 @@ render_file() {
         -e 's#\$SITEURL#'"$BASE_URL"'#g'\
         -e 's#\$PAGEURL#'"$page_url"'#g' |
         check_and_set_page_var "CONTENT_TITLE" "$content_title" |
+        check_and_set_page_var "AUTHOR" "$author" |
         check_and_set_page_var "DATE" "$pagedate" |
         check_and_set_page_var "CATEGORY" "$category" |
         check_and_set_page_var "FEED_RSS" "$FEED_RSS" |
