@@ -47,6 +47,9 @@ function gen_idx_from_template
             # Skip entries without a date if the template expects one
             [[ "$body" =~ \$DATE ]] && [ -z "$DATE" ] && continue
             [[ "$body_file" =~ category.html ]] && [ ! "$CATEGORY" == "$category" ] && continue
+            if [ -n "$CATEGORY" ]; then
+                CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
+            fi
             if [ -z "$MODIFIED" ]; then
                 if [ -n "$DATE" ]; then
                     MODIFIED="$DATE"
