@@ -10,7 +10,7 @@ sep="#"
 
 function name_linkify
 {
-    echo "$1" | awk '{print gensub("[[:space:]]", "-", "g", tolower($0))}'
+    echo "${1// /-}" | tr '[:upper:]' '[:lower:]'
 }
 
 function escape_str
