@@ -14,11 +14,13 @@ TEMPLATE_DIR?=templates
 DEV_OUT?=web-dev
 PROD_OUT?=web-prod
 URL_LIST?=all_pages.csv
+FEED_RSS?=
 S3_BUCKET?=
 DEV_BASE_URL?=
 PROD_BASE_URL?=
 $(DEV_OUT)_URL=$(DEV_BASE_URL)
 $(PROD_OUT)_URL=$(PROD_BASE_URL)
+SHORT_INDEXES?=index.html # index(es) of only the most recent entries
 
 SSG_UPDATE_LIST=.files
 LCP_TSTAMP=.lcp_updated
@@ -37,19 +39,28 @@ clean:
 	[ -d $(@D) ] && rm -v $(@D)/$(SSG_UPDATE_LIST)
 
 $(URL_LIST): 
+	[ -d $(INPUTDIR) ] || mkdir -p $(INPUTDIR)
 	$(PG) -c $(INPUTDIR) > $@
 
+# Top latest posts
+$(URL_LIST).short: $(URL_LIST)
+	$(shell head -11 $(URL_LIST) > $@)
+
+short_indexes := $(patsubst %, $(INPUTDIR)/%, $(SHORT_INDEXES))
+
 indexes := $(patsubst %, $(INPUTDIR)/%, \
-	$(filter-out %.hdr %.ftr rss.% category.%, \
+	$(filter-out %.hdr %.ftr rss.% category.% $(SHORT_INDEXES), \
 	$(patsubst $(TEMPLATE_DIR)/%, %, \
 	$(wildcard $(TEMPLATE_DIR)/*.*))))
 
 # TODO: make each index also dependent on all index.* templates
 $(indexes): $(URL_LIST)
-	[ -d $(@D) ] || mkdir -p $(@D)
 	$(PG) -x $< $(TEMPLATE_DIR)/$(@F) > $@
 
-%/$(SSG_UPDATE_LIST): $(indexes) FORCE
+$(short_indexes): $(URL_LIST).short
+	$(PG) -x $< $(TEMPLATE_DIR)/$(@F) > $@
+
+%/$(SSG_UPDATE_LIST): $(indexes) $(short_indexes) FORCE
 	[ -d $(@D) ] || mkdir -p $(@D)
 	$(SSG) $(INPUTDIR) $(@D) $(SITE_TITLE) $($(@D)_URL)
 
@@ -77,6 +88,37 @@ dev_rss: $(DEV_OUT)/$(FEED_RSS)
 prod_rss: $(PROD_OUT)/$(FEED_RSS)
 endif
 
+ifdef S3_BUCKET
 s3_upload: $(S3_DEPS)
 	s3cmd sync $(foreach excl,$(notdir $(S3_DEPS)),--exclude='$(excl)') $(PROD_OUT)/ s3://$(S3_BUCKET) --acl-public --delete-removed --guess-mime-type --no-mime-magic --no-preserve --cf-invalidate
+endif
+
+###### New post/edit post macros ##########
+
+POSTDIR=$(INPUTDIR)/posts/$(shell date +'%Y/%m')
+SLUG := $(shell echo '${NAME}' | sed -e 's/[^[:alnum:]]/-/g' | tr -s '-' | tr A-Z a-z)
+EXT ?= md
+
+newpost:
+ifdef NAME
+	mkdir -p $(POSTDIR)
+	echo "---\n"\
+	"Title: $(NAME)\n"\
+	"Date: $(shell date +'%Y-%m-%d')\n"\
+	"Category: Blog\n"\
+	"Status: Published\n"\
+	"...\n\n" >> $(POSTDIR)/$(SLUG).$(EXT)
+	${EDITOR} ${POSTDIR}/${SLUG}.${EXT}
+else
+	@echo 'Variable NAME is not defined.'
+	@echo 'Do make newpost NAME='"'"'Post Name'"'"
+endif
+
+editpost:
+ifdef NAME
+	find ${INPUTDIR} -type f -iregex '.*${SLUG}.*\.${EXT}' -exec ${EDITOR} {} \+
+else
+	@echo 'Variable NAME is not defined.'
+	@echo 'Do make editpost NAME='"'"'Post Name'"'"
+endif
 
