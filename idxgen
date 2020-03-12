@@ -121,7 +121,7 @@ EOF
         <guid isPermaLink="false">tag:$site_url_no_lead,$DATE:$HREF</guid>
     </item>
 EOF
-    # Extract older items from the existing RSS if exists
+    # If older RSS exists, populate only newer entries
     if [ -f "$update_rss_file" ]; then
         grep -q "$TITLE" "$update_rss_file" && \
             sed -n '1,/'"$TITLE"'/d;/<item>/,$p' "$update_rss_file" && \

@@ -10,8 +10,10 @@
 
 # Ideas
 
+1. Similar to RSS generation, only produce the newer templated entries; leverage the existing.
 1. Leverage a global def list of link definitions
 1. configurable to select the category html name format (include extension in link?)
-1. Templates containing categories: incorporate category links
+1. X - Templates containing categories: incorporate category links
 1. gen_content_list: what date to use for non-markdown? appeal to date set in content file?
 1. X - use CFG_FILE vars for output directory, file names, etc
+1. gen_content_list: extract summary here (if not explicitly provided in metadata) instead of the RSS routine, thus enabling the RSS generation from a template as with all other indexes. 

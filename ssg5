@@ -2,7 +2,7 @@
 #
 # Parts based on https://rgz.ee/bin/ssg5
 # (c) 2018-2019 Roman Zolotarev <hi@romanzolotarev.com>
-# (c) 2019 Vitaly Parnas <vp330@parnas.me>
+# (c) 2019-2020 Vitaly Parnas <vp330@parnas.me>
 # See LICENSE for licensing information.
 
 CFG_FILE="./.ssg_config"
