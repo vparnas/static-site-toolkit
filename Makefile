@@ -20,7 +20,7 @@ DEV_BASE_URL?=
 PROD_BASE_URL?=
 $(DEV_OUT)_URL=$(DEV_BASE_URL)
 $(PROD_OUT)_URL=$(PROD_BASE_URL)
-SHORT_INDEXES?=index.html # index(es) of only the most recent entries
+SHORT_INDEXES?= # index(es) of only the most recent entries
 
 SSG_UPDATE_LIST=.files
 LCP_TSTAMP=.lcp_updated
@@ -70,7 +70,7 @@ FORCE:
 ifdef FEED_RSS
 %/$(FEED_RSS): $(URL_LIST) $(PROD_OUT)/$(SSG_UPDATE_LIST)
 	[ -d $(@D) ] || mkdir -p $(@D)
-	$(PG) -r $< > $@
+	[ -f $@ ] && (mv $@ $@.prev && $(PG) -r $< $@.prev > $@ && rm $@.prev) || $(PG) -r $< > $@
 endif
 
 ifneq (,$(wildcard ./$(LCP_INPUT)))

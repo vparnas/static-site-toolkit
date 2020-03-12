@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# (c) 2019 Vitaly Parnas <vp330@parnas.me>
+# (c) 2019-2020 Vitaly Parnas <vp330@parnas.me>
 # See LICENSE for licensing information.
 
 [ -z "$CFG_FILE" ] && CFG_FILE="./.ssg_config"
@@ -78,6 +78,7 @@ function remove_tags_nbsp
 function gen_rss
 {
     metadata_list="$1"; shift
+    update_rss_file="$1"; shift
 
     html_dir="$PROD_OUT"
     build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
@@ -120,8 +121,15 @@ EOF
         <guid isPermaLink="false">tag:$site_url_no_lead,$DATE:$HREF</guid>
     </item>
 EOF
+    # Extract older items from the existing RSS if exists
+    if [ -f "$update_rss_file" ]; then
+        grep -q "$TITLE" "$update_rss_file" && \
+            sed -n '1,/'"$TITLE"'/d;/<item>/,$p' "$update_rss_file" && \
+            break
+    fi
     done
 
+    [ ! -f "$update_rss_file" ] && \
     cat <<EOF
 </channel></rss>
 EOF
@@ -171,7 +179,7 @@ cmd="$1"; shift
 case "$cmd" in
     -c|--gen-content) gen_content_list "$1"; exit 0;;
     -x|--index) gen_idx_from_template "$@"; exit 0;;
-    -r|--rss) gen_rss "$1"; exit 0;;
+    -r|--rss) gen_rss "$@"; exit 0;;
     -h|--help|*) help; exit 0;;
 esac
 
