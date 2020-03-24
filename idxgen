@@ -22,6 +22,7 @@ function escape_str
 function gen_idx_from_template
 {
     metadata_list="$1"; shift
+    existing_idx="$1"; shift
     body_file="$1"; shift
     category="$1"
 
@@ -33,11 +34,14 @@ function gen_idx_from_template
     fi
     [ -f "$header_file" ] && eval "echo -e $(escape_str < $header_file)"
     declare body="$(escape_str < $body_file)"
+    body_anchor=$(echo -e "$body" | sed -n 's/[^<]*\(<\w\+\).*/\1/p;q')
     if [[ "$body_file" =~ categories.html ]]; then
         cats_counts=$(sed '1d' "$metadata_list" | awk -F "$sep" '{if ($5) print $5}' | sort | uniq -ci)
         while read -r COUNT CATEGORY; do
             CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
-            gen_idx_from_template "$metadata_list" "$TEMPLATE_DIR/category.html" "$CATEGORY" > "$INPUTDIR/$CATEGORY_URL.html"
+            gen_idx_from_template "$metadata_list" "" \
+                "$TEMPLATE_DIR/category.html" "$CATEGORY" \
+                > "$INPUTDIR/$CATEGORY_URL.html"
             eval "echo -e $body"
         done <<< "$cats_counts"
     else
@@ -46,7 +50,8 @@ function gen_idx_from_template
         while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
             # Skip entries without a date if the template expects one
             [[ "$body" =~ \$DATE ]] && [ -z "$DATE" ] && continue
-            [[ "$body_file" =~ category.html ]] && [ ! "$CATEGORY" == "$category" ] && continue
+            [[ "$body_file" =~ category.html ]] && 
+                [ ! "$CATEGORY" == "$category" ] && continue
             if [ -n "$CATEGORY" ]; then
                 CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
             fi
@@ -58,8 +63,16 @@ function gen_idx_from_template
                 fi
             fi
             eval "echo -e $body"
+            if [ -f "$existing_idx" ]; then
+                escaped_url="${HREF//\//\\\/}"
+                grep -q "$HREF" "$existing_idx" &&
+                sed -n '0,/'"$escaped_url"'/d;/'"$body_anchor"'/,$p' "$existing_idx" &&
+                break
+            fi
         done
     fi
+    # TODO: process footer unless categories or existing template *was* leveraged
+    [ ! -f "$existing_idx" ] && 
     [ -f "$footer_file" ] && eval "echo -e $(escape_str < $footer_file)"
 }
 
@@ -78,7 +91,7 @@ function remove_tags_nbsp
 function gen_rss
 {
     metadata_list="$1"; shift
-    update_rss_file="$1"; shift
+    existing_rss="$1"; shift
 
     html_dir="$PROD_OUT"
     build_date=$(date '+%a, %d %b %Y %H:%M:%S %z')
@@ -121,15 +134,15 @@ EOF
         <guid isPermaLink="false">tag:$site_url_no_lead,$DATE:$HREF</guid>
     </item>
 EOF
-    # If older RSS exists, populate only newer entries
-    if [ -f "$update_rss_file" ]; then
-        grep -q "$TITLE" "$update_rss_file" && \
-            sed -n '1,/'"$TITLE"'/d;/<item>/,$p' "$update_rss_file" && \
+        # If older RSS exists, populate only newer RSS entries
+        if [ -f "$existing_rss" ]; then
+            grep -q "$TITLE" "$existing_rss" &&
+            sed -n '1,/'"$TITLE"'/d;/<item>/,$p' "$existing_rss" &&
             break
-    fi
+        fi
     done
 
-    [ ! -f "$update_rss_file" ] && \
+    [ ! -f "$existing_rss" ] &&
     cat <<EOF
 </channel></rss>
 EOF

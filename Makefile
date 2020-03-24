@@ -55,10 +55,11 @@ indexes := $(patsubst %, $(INPUTDIR)/%, \
 
 # TODO: make each index also dependent on all index.* templates
 $(indexes): $(URL_LIST)
-	$(PG) -x $< $(TEMPLATE_DIR)/$(@F) > $@
+	[ -f $@ ] && mv $@ $@.prev; \
+	$(PG) -x $< $@.prev $(TEMPLATE_DIR)/$(@F) > $@
 
 $(short_indexes): $(URL_LIST).short
-	$(PG) -x $< $(TEMPLATE_DIR)/$(@F) > $@
+	$(PG) -x $< "" $(TEMPLATE_DIR)/$(@F) > $@
 
 %/$(SSG_UPDATE_LIST): $(indexes) $(short_indexes) FORCE
 	[ -d $(@D) ] || mkdir -p $(@D)
@@ -70,7 +71,9 @@ FORCE:
 ifdef FEED_RSS
 %/$(FEED_RSS): $(URL_LIST) $(PROD_OUT)/$(SSG_UPDATE_LIST)
 	[ -d $(@D) ] || mkdir -p $(@D)
-	[ -f $@ ] && (mv $@ $@.prev && $(PG) -r $< $@.prev > $@ && rm $@.prev) || $(PG) -r $< > $@
+	[ -f $@ ] && mv $@ $@.prev; \
+	$(PG) -r $< $@.prev > $@
+	rm -f $@.prev
 endif
 
 ifneq (,$(wildcard ./$(LCP_INPUT)))
