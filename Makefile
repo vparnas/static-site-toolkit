@@ -39,7 +39,7 @@ clean:
 	[ -d $(@D) ] && rm -v $(@D)/$(SSG_UPDATE_LIST)
 
 $(URL_LIST): 
-	[ -d $(INPUTDIR) ] || mkdir -p $(INPUTDIR)
+	mkdir -p $(INPUTDIR)
 	$(PG) -c $(INPUTDIR) > $@
 
 # Top latest posts
@@ -55,16 +55,15 @@ indexes := $(patsubst %, $(INPUTDIR)/%, \
 
 # TODO: make each index also dependent on all index.* templates
 $(indexes): $(URL_LIST)
-	[ -d $(@D) ] || mkdir -p $(@D)
-	[ -f $@ ] && mv $@ $@.prev; \
-	$(PG) -x $< $@.prev $(patsubst $(INPUTDIR)/%, $(TEMPLATE_DIR)/%, $@) > $@
-	rm -f $@.prev
+	mkdir -p $(@D)
+	$(PG) -x $< $@ $(patsubst $(INPUTDIR)/%, $(TEMPLATE_DIR)/%, $@)
 
 $(short_indexes): $(URL_LIST).short
-	$(PG) -x $< "" $(TEMPLATE_DIR)/$(@F) > $@
+	mkdir -p $(@D)
+	$(PG) -x $< $@ $(TEMPLATE_DIR)/$(@F) "" 1
 
 %/$(SSG_UPDATE_LIST): $(indexes) $(short_indexes) FORCE
-	[ -d $(@D) ] || mkdir -p $(@D)
+	mkdir -p $(@D)
 	$(SSG) $(INPUTDIR) $(@D) $(SITE_TITLE) $($(@D)_URL)
 
 FORCE:

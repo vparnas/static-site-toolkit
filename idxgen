@@ -21,15 +21,20 @@ function escape_str
 # Uses 'declare' variable declarations to avoid conflicts with recursive calls
 function gen_idx_from_template
 {
-    metadata_list="$1"; shift
-    existing_idx="$1"; shift
-    body_file="$1"; shift
-    category="$1"
+    declare metadata_list="$1"; shift
+    declare output="$1"; shift
+    declare body_file="$1"; shift
+    declare category="$1"; shift
+    declare ignore_existing="$1"
 
     declare header_file="${body_file%.*}.hdr"
     declare footer_file="${body_file%.*}.ftr"
-    [ ! -f $body_file ] && echo "$body_file doesn't exist" >&2 && return
-    [ -f "$header_file" ] && eval "echo -e $(escape_str < $header_file)"
+    [[ ! -f "$body_file" || ! -f "$header_file" || ! -f "$footer_file" ]] && 
+        echo "$body_file, $header_file, or $footer_file not found" >&2 && return
+
+    [ -z "$ignore_existing" ] && declare existing_idx="$output.prev" &&
+        [ -f "$output" ] && mv "$output" "$existing_idx"
+    eval "echo -e $(escape_str < $header_file)" > "$output"
     declare body="$(escape_str < $body_file)"
     body_anchor=$(echo -e "$body" | sed -n 's/[^<]*\(<\w\+\).*/\1/p;q')
     if [[ "$body_file" =~ categories.html ]]; then
@@ -37,14 +42,13 @@ function gen_idx_from_template
         while read -r COUNT CATEGORY; do
             CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
             mkdir -p "$INPUTDIR/categories"
-            gen_idx_from_template "$metadata_list" "" \
-                "$TEMPLATE_DIR/category.html" "$CATEGORY" \
-                > "$INPUTDIR/$CATEGORY_URL.html"
-            eval "echo -e $body"
+            gen_idx_from_template "$metadata_list" \
+                "$INPUTDIR/$CATEGORY_URL.html" \
+                "$TEMPLATE_DIR/category.html" "$CATEGORY"
+            eval "echo -e $body" >> "$output"
         done <<< "$cats_counts"
     else
         declare IFS="#"
-        sed '1d' "$metadata_list" |
         while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
             # Skip entries without a date if the template expects one
             [[ "$body" =~ \$DATE && -z "$DATE" ]] && continue
@@ -53,8 +57,8 @@ function gen_idx_from_template
             [[ "$body" =~ \$CATEGORY_URL && -n "$CATEGORY" ]] &&
                 CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
             [[ -z "$MODIFIED" && -n "$DATE" ]] && 
-                    MODIFIED="$DATE" || 
-                    MODIFIED="$(date '+%Y-%m-%d')"
+                MODIFIED="$DATE" || 
+                MODIFIED="$(date '+%Y-%m-%d')"
             if [[ "$body" =~ \$SUMMARY && -z "$SUMMARY" ]]; then
                 html_path="$PROD_OUT/$HREF" # Requires prod directory built
                 [ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
@@ -62,18 +66,22 @@ function gen_idx_from_template
                 SUMMARY="$(get_description < $html_path | remove_tags_nbsp)"
 			fi
             # Hack for the html escape sequences in the SUMMARY to properly eval
-            eval "echo -e \"$body\"" | sed 's/\\//g'
+            eval "echo -e \"$body\"" | sed 's/\\//g' >> "$output"
             if [ -f "$existing_idx" ]; then
-                escaped_url="${HREF//\//\\\/}"
-                grep -q "$HREF" "$existing_idx" &&
-                sed -n '0,/'"$escaped_url"'/d;/'"$body_anchor"'/,$p' "$existing_idx" &&
-                break
+                found=$(grep "$HREF" "$existing_idx")
+                if [ $found ]; then
+                    escaped_url="${HREF//\//\\\/}"
+                    sed -n '0,/'"$escaped_url"'/d;/'"$body_anchor"'/,$p' "$existing_idx" >> "$output"
+                    #echo "Reusing existing"
+                    rm "$existing_idx"
+                    return
+                fi
             fi
-        done
+        done <<< $(sed '1d' "$metadata_list")
     fi
-    # TODO: process footer unless categories or existing template *was* leveraged
-    [ ! -f "$existing_idx" ] && 
-    [ -f "$footer_file" ] && eval "echo -e $(escape_str < $footer_file)"
+    [ -f "$existing_idx" ] && rm -v "$existing_idx"
+    #echo "Processing footer"
+    eval "echo -e $(escape_str < $footer_file)" >> "$output"
 }
 
 function get_description
