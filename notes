@@ -6,14 +6,16 @@
 1. ssg5: command line options - redo for optional args, considering the config file
 1. gen_content_list: $IGNORE directive in find not working
 1. Incorporate the link_cross_postings::fix_links routine into Makefile via implicit variables
-1. assert no leading slash in Makefile $(FEED_RSS)
 
 # Ideas
 
-1. Similar to RSS generation, only produce the newer templated entries; leverage the existing.
 1. Leverage a global def list of link definitions
 1. configurable to select the category html name format (include extension in link?)
 1. X - Templates containing categories: incorporate category links
 1. gen_content_list: what date to use for non-markdown? appeal to date set in content file?
 1. X - use CFG_FILE vars for output directory, file names, etc
+
+# Completed
+
 1. gen_content_list: extract summary here (if not explicitly provided in metadata) instead of the RSS routine, thus enabling the RSS generation from a template as with all other indexes. 
+1. Similar to RSS generation, only produce the newer templated entries; leverage the existing.

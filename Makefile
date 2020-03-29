@@ -49,14 +49,16 @@ $(URL_LIST).short: $(URL_LIST)
 short_indexes := $(patsubst %, $(INPUTDIR)/%, $(SHORT_INDEXES))
 
 indexes := $(patsubst %, $(INPUTDIR)/%, \
-	$(filter-out %.hdr %.ftr rss.% category.% $(SHORT_INDEXES), \
+	$(filter-out %.hdr %.ftr category.% $(SHORT_INDEXES), \
 	$(patsubst $(TEMPLATE_DIR)/%, %, \
-	$(wildcard $(TEMPLATE_DIR)/*.*))))
+	$(shell find $(TEMPLATE_DIR) -type f ))))
 
 # TODO: make each index also dependent on all index.* templates
 $(indexes): $(URL_LIST)
+	[ -d $(@D) ] || mkdir -p $(@D)
 	[ -f $@ ] && mv $@ $@.prev; \
-	$(PG) -x $< $@.prev $(TEMPLATE_DIR)/$(@F) > $@
+	$(PG) -x $< $@.prev $(patsubst $(INPUTDIR)/%, $(TEMPLATE_DIR)/%, $@) > $@
+	rm -f $@.prev
 
 $(short_indexes): $(URL_LIST).short
 	$(PG) -x $< "" $(TEMPLATE_DIR)/$(@F) > $@
@@ -67,15 +69,6 @@ $(short_indexes): $(URL_LIST).short
 
 FORCE:
 
-# The RSS feed depends on $(PROD_OUT)/$(SSG_UPDATE_LIST) since the rss routine scans the production content to populate the description.
-ifdef FEED_RSS
-%/$(FEED_RSS): $(URL_LIST) $(PROD_OUT)/$(SSG_UPDATE_LIST)
-	[ -d $(@D) ] || mkdir -p $(@D)
-	[ -f $@ ] && mv $@ $@.prev; \
-	$(PG) -r $< $@.prev > $@
-	rm -f $@.prev
-endif
-
 ifneq (,$(wildcard ./$(LCP_INPUT)))
 %/$(LCP_TSTAMP): %/$(SSG_UPDATE_LIST)
 	$(LCP) -r $(@D) -L < $(LCP_INPUT)
@@ -85,11 +78,6 @@ endif
 dev: $(DEV_OUT)/$(SSG_UPDATE_LIST)
 
 prod: $(PROD_OUT)/$(SSG_UPDATE_LIST)
-
-ifdef FEED_RSS
-dev_rss: $(DEV_OUT)/$(FEED_RSS)
-prod_rss: $(PROD_OUT)/$(FEED_RSS)
-endif
 
 ifdef S3_BUCKET
 s3_upload: $(S3_DEPS)
