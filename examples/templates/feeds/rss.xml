@@ -1,0 +1,10 @@
+\t<item>
+\t\t<title>$TITLE</title>
+\t\t<link>$PROD_BASE_URL$HREF</link>
+\t\t<description><![CDATA[
+\t\t$SUMMARY
+\t\t]]></description>
+\t\t<dc:creator xmlns:dc="http://purl.org/dc/elements/1.1/">$SITE_TITLE</dc:creator>
+\t\t<pubDate>`date '+%a, %d %b %Y %H:%M:%S %z' -d $DATE`</pubDate>
+\t\t<guid isPermaLink="false">tag:${PROD_BASE_URL##*/},$DATE:$HREF</guid>
+\t</item>
