@@ -5,11 +5,13 @@ FAV_ICON="favicon.ico"
 INPUTDIR=web
 DEV_OUT=web-dev
 PROD_OUT=web-prod
-SHORT_INDEXES=index.html # index template for only the latest X posts
+SHORT_INDEXES=index.html # index template that produces only the latest 10 posts
 TEMPLATE_DIR=templates
 URL_LIST=all_content.csv
-FEED_RSS=/feeds/rss.xml # Comment out to disable RSS generation
-#S3_BUCKET= # Comment out to omit the Makefile S3 uploading logic
+# Comment out the following and remove any RSS templates to disable RSS generation
+FEED_RSS=/feeds/rss.xml 
+# Set to the Amazon S3 bucket hosting your web content, *excluding* the s3:// portion. Comment out to omit the Makefile S3 uploading logic.
+#S3_BUCKET= 
 DEV_BASE_URL="http://localhost:8080"
 PROD_BASE_URL="https://mysite.com"
 HEADER=_header.html
