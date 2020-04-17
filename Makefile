@@ -49,7 +49,7 @@ $(URL_LIST).short: $(URL_LIST)
 short_indexes := $(patsubst %, $(INPUTDIR)/%, $(SHORT_INDEXES))
 
 indexes := $(patsubst %, $(INPUTDIR)/%, \
-	$(filter-out %.hdr %.ftr category.% $(SHORT_INDEXES), \
+	$(filter-out %.hdr %.ftr %rss.xml category.% $(SHORT_INDEXES), \
 	$(patsubst $(TEMPLATE_DIR)/%, %, \
 	$(shell find $(TEMPLATE_DIR) -type f ))))
 
@@ -61,6 +61,16 @@ $(indexes): $(URL_LIST)
 $(short_indexes): $(URL_LIST).short
 	mkdir -p $(@D)
 	$(PG) -x $< $@ $(TEMPLATE_DIR)/$(@F) "" 1
+
+# The RSS feed depends on $(PROD_OUT)/$(SSG_UPDATE_LIST) since the rss routine scans the production content to populate the description.
+ifdef FEED_RSS
+%/$(FEED_RSS): $(URL_LIST) $(PROD_OUT)/$(SSG_UPDATE_LIST)
+	mkdir -p $(@D)
+	$(PG) -x $< $@ $(TEMPLATE_DIR)/$(FEED_RSS)
+
+dev_rss: $(DEV_OUT)/$(FEED_RSS)
+prod_rss: $(PROD_OUT)/$(FEED_RSS)
+endif
 
 %/$(SSG_UPDATE_LIST): $(indexes) $(short_indexes) FORCE
 	mkdir -p $(@D)

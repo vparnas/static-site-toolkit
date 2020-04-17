@@ -88,7 +88,7 @@ ssg5 web web-prod "My site" "https://ntmlabs.com"
 1. Execute the following:
 
 ```sh
-idxgen -x all-content.csv web/feeds/rss.xml templates/feeds/rss.xml
+idxgen -x all-content.csv web-prod/feeds/rss.xml templates/feeds/rss.xml
 ```
 
 ## Automating the build
@@ -109,6 +109,7 @@ PROD_BASE_URL="https://mysite.com"
 
 1. Run `make` to generate the *URL_LIST*, build all the templates and compile a local website in *DEV_OUT*.
 1. Run `make prod` to similarly build the production version in *PROD_OUT*
+1. Run `make prod_rss` to produce the RSS feed
 1. Optional: if S3_BUCKET is defined (see below), execute `make s3_upload` to sync the *PROD_OUT* folder with the appropriate Amazon S3 bucket.
 
 ## Optional configuration
