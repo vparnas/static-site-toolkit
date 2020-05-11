@@ -1,9 +1,10 @@
-# vim: set filetype=markdown : 
-
 # TODO
 
-1. ssg5: process template vars in the global footer template.
-1. ssg5: command line options - redo for optional args, considering the config file
+1. ssg BUG: VAR insertion breaks if multiple comment tags on same line
+1. ssg: don't process .conf (or non-web) files in web directory
+1. ssg: If AUTHOR config var present, always include author (if not superceded by metadata author) BUT only on dated posts?
+1. ssg: process template vars in the global footer template.
+1. ssg: command line options - redo for optional args, considering the config file
 1. gen_content_list: $IGNORE directive in find not working
 1. Incorporate the link_cross_postings::fix_links routine into Makefile via implicit variables
 
@@ -17,5 +18,8 @@
 
 # Completed
 
+1. ssg5: menu generation: don't expect 'nav' field, only the id menu
 1. gen_content_list: extract summary here (if not explicitly provided in metadata) instead of the RSS routine, thus enabling the RSS generation from a template as with all other indexes. 
 1. Similar to RSS generation, only produce the newer templated entries; leverage the existing.
+
+ vim:set ft=markdown: 
