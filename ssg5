@@ -126,7 +126,7 @@ set_menu_items() {
         i=$(( i+2 ))
     done
     echo -n "</ul>" )
-    sed "/nav.*menu/I{s#.*#\0\n$menu_html#}"
+    sed "s#.*id=[\"']menu[^>]*>#\0\n$menu_html#i"
 }
 
 check_and_set_page_var() {
@@ -172,8 +172,8 @@ render_file() {
         content_title=$(extract_metadata "title" "$input_file")
         [ -n "$content_title" ] && pagetitle="$SITE_TITLE - $content_title"
     elif [ "$ext" = "html" ]; then
-        first_h1=$(sed -rn '/<h1>.*<\/h1>/I{s/<h1>(.*)<\/h1>/\1/ip;q}' "$input_file")
-        [ -n "$first_h1" ] && pagetitle="$SITE_TITLE - $first_h1"
+        first_h_tag=$(sed -rn 's/<h[0-9][^>]*>(.*)<\/h[0-9]>/\1/ip;q' "$input_file")
+        [ -n "$first_h_tag" ] && pagetitle="$SITE_TITLE - $first_h_tag"
     fi
     author=$(extract_metadata "author" "$input_file")
     pagedate=$(extract_metadata "date" "$input_file")
