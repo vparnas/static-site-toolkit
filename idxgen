@@ -56,9 +56,10 @@ function gen_idx_from_template
                 [ ! "$CATEGORY" == "$category" ] && continue
             [[ "$body" =~ \$CATEGORY_URL && -n "$CATEGORY" ]] &&
                 CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
-            [[ -z "$MODIFIED" && -n "$DATE" ]] && 
-                MODIFIED="$DATE" || 
-                MODIFIED="$(date '+%Y-%m-%d')"
+            if [ -z "$MODIFIED" ]; then 
+                [ -n "$DATE" ] && MODIFIED="$DATE" || 
+                    MODIFIED="$(date '+%Y-%m-%d')"
+            fi
             if [[ "$body" =~ \$SUMMARY && -z "$SUMMARY" ]]; then
                 html_path="$PROD_OUT/$HREF" # Requires prod directory built
                 [ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
