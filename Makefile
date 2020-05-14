@@ -32,8 +32,11 @@ S3_DEPS=$(PROD_OUT)/$(SSG_UPDATE_LIST)
 
 default: dev
 
-clean:
+clean: clean_indexes
 	rm -rfv $(DEV_OUT) $(PROD_OUT) dummy
+
+clean_indexes:
+	rm -rfv $(indexes) $(short_indexes) $(INPUTDIR)/categories $(DEV_OUT)/$(FEED_RSS) $(PROD_OUT)/$(FEED_RSS) dummy
 
 %/clear:
 	[ -d $(@D) ] && rm -v $(@D)/$(SSG_UPDATE_LIST)
