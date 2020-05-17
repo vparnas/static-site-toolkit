@@ -35,11 +35,14 @@ default: dev
 clean: clean_indexes
 	rm -rfv $(DEV_OUT) $(PROD_OUT) dummy
 
+dev_refresh: clean_indexes
+	rm -fv $(DEV_OUT)/$(SSG_UPDATE_LIST)
+
+prod_refresh: clean_indexes
+	rm -fv $(PROD_OUT)/$(SSG_UPDATE_LIST)
+
 clean_indexes:
 	rm -rfv $(indexes) $(short_indexes) $(INPUTDIR)/categories $(DEV_OUT)/$(FEED_RSS) $(PROD_OUT)/$(FEED_RSS) dummy
-
-%/clear:
-	[ -d $(@D) ] && rm -v $(@D)/$(SSG_UPDATE_LIST)
 
 $(URL_LIST): 
 	mkdir -p $(INPUTDIR)

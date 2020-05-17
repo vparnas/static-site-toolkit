@@ -132,22 +132,17 @@ set_menu_items() {
 check_and_set_page_var() {
     var=$1
     value=$2
-    if [ -n "$var" ] && [ -n "$value" ]; then
-        sed 's#\$'"$var"'#'"$value"'#g; /#'"$var"'/d'
-    else
+    [ -n "$value" ] &&
+        sed 's#\$'"$var"'#'"$value"'#g; /#'"$var"'/d' ||
         sed '/#'"$var"'/,/\/#'"$var"'/d'
-    fi
 }
 
 extract_metadata() {
     name="$1"
     input_file="$2"
     ext="${input_file##*.}"
-    if [ "$ext" = "md" ]; then
-        sed -rn '1,/^\s*$/s/^'"$name"':\s*(.*[^[:space:]])\s*$/\1/ip' "$input_file"
-    else
-        echo
-    fi        
+    [ "$ext" = "md" ] && 
+        sed -rn '1,/^\s*$/{s/^'"$name"':\s*(.*[^[:space:]])\s*$/\1/ip}' "$input_file"
 }
 
 render_file() {
@@ -163,7 +158,7 @@ render_file() {
 
     extract_metadata "status" "$input_file" |
         grep -qi 'draft' && echo "Skip draft $source_html" && return
-    [ -d "$dst_file_dir" ] || mkdir -p "$dst_file_dir"
+    mkdir -p "$dst_file_dir"
     
     pagetitle="$SITE_TITLE"
     content_title=""
