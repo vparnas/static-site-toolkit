@@ -16,6 +16,7 @@ PROD_OUT?=web-prod
 URL_LIST?=all_pages.csv
 FEED_RSS?=
 S3_BUCKET?=
+SSH_PATH?=
 DEV_BASE_URL?=
 PROD_BASE_URL?=
 $(DEV_OUT)_URL=$(DEV_BASE_URL)
@@ -26,7 +27,7 @@ SSG_UPDATE_LIST=.files
 LCP_TSTAMP=.lcp_updated
 LCP_INPUT=cross-postings.list
 
-S3_DEPS=$(PROD_OUT)/$(SSG_UPDATE_LIST)
+UPLOAD_DEPS=$(PROD_OUT)/$(SSG_UPDATE_LIST)
 
 .PHONY: default dev prod s3_upload clean 
 
@@ -34,6 +35,7 @@ default: dev
 
 clean: clean_indexes
 	rm -rfv $(DEV_OUT) $(PROD_OUT) dummy
+	rm -fv $(URL_LIST)
 
 dev_refresh: clean_indexes
 	rm -fv $(DEV_OUT)/$(SSG_UPDATE_LIST)
@@ -87,7 +89,7 @@ FORCE:
 ifneq (,$(wildcard ./$(LCP_INPUT)))
 %/$(LCP_TSTAMP): %/$(SSG_UPDATE_LIST)
 	$(LCP) -r $(@D) -L < $(LCP_INPUT)
-S3_DEPS += $(PROD_OUT)/$(LCP_TSTAMP)
+UPLOAD_DEPS += $(PROD_OUT)/$(LCP_TSTAMP)
 endif
 
 dev: $(DEV_OUT)/$(SSG_UPDATE_LIST)
@@ -95,8 +97,13 @@ dev: $(DEV_OUT)/$(SSG_UPDATE_LIST)
 prod: $(PROD_OUT)/$(SSG_UPDATE_LIST)
 
 ifdef S3_BUCKET
-s3_upload: $(S3_DEPS)
-	s3cmd sync $(foreach excl,$(notdir $(S3_DEPS)),--exclude='$(excl)') $(PROD_OUT)/ s3://$(S3_BUCKET) --acl-public --delete-removed --guess-mime-type --no-mime-magic --no-preserve --cf-invalidate
+s3_upload: $(UPLOAD_DEPS)
+	s3cmd sync $(foreach excl,$(notdir $(UPLOAD_DEPS)),--exclude='$(excl)') $(PROD_OUT)/ s3://$(S3_BUCKET) --acl-public --delete-removed --guess-mime-type --no-mime-magic --no-preserve --cf-invalidate
+endif
+
+ifdef SSH_PATH
+ssh_upload: $(UPLOAD_DEPS)
+	rsync -avChum --progress --delete $(foreach excl,$(notdir $(UPLOAD_DEPS)),--exclude '$(excl)') $(PROD_OUT)/ $(SSH_PATH) 
 endif
 
 ###### New post/edit post macros ##########

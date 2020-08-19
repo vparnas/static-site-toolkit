@@ -1,5 +1,6 @@
 # TODO
 
+1. rsync Don't maintain permissions - reset to default, or guarantee ugo+r access
 1. ssg BUG: VAR insertion breaks if multiple comment tags on same line
 1. ssg: don't process .conf (or non-web) files in web directory
 1. ssg: If AUTHOR config var present, always include author (if not superceded by metadata author) BUT only on dated posts?
