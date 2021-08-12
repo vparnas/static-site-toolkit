@@ -52,7 +52,7 @@ $(URL_LIST):
 
 # Top latest posts
 $(URL_LIST).short: $(URL_LIST)
-	$(shell head -11 $(URL_LIST) > $@)
+	$(shell head -15 $(URL_LIST) > $@)
 
 short_indexes := $(patsubst %, $(INPUTDIR)/%, $(SHORT_INDEXES))
 
