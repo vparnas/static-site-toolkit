@@ -34,6 +34,7 @@ Tools to streamline the publishing of static web content.
 - [lowdown](https://kristaps.bsd.lv/lowdown/)
 - cpio
 - Make
+- gawk, if extracting summaries for rss feed generation
 
 ## Usage
 

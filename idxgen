@@ -52,8 +52,7 @@ function gen_idx_from_template
         while read -r DATE MODIFIED TITLE HREF CATEGORY SUMMARY; do
             # Skip entries without a date if the template expects one
             [[ "$body" =~ \$DATE && -z "$DATE" ]] && continue
-            [[ "$body_file" =~ category.html ]] && 
-                [ ! "$CATEGORY" == "$category" ] && continue
+            [ -n "$category" ] && [ "$CATEGORY" != "$category" ] && continue
             [[ "$body" =~ \$CATEGORY_URL && -n "$CATEGORY" ]] &&
                 CATEGORY_URL="categories/"$(name_linkify "$CATEGORY")
             if [ -z "$MODIFIED" ]; then 
@@ -65,7 +64,7 @@ function gen_idx_from_template
                 [ -z "${html_path##*/}" ] && html_path="$html_path""index.html"
                 [ -f "$html_path" ] &&
                 SUMMARY="$(get_description < $html_path | remove_tags_nbsp)"
-			fi
+            fi
             # Hack for the html escape sequences in the SUMMARY to properly eval
             eval "echo -e \"$body\"" | sed 's/\\//g' >> "$output"
             if [ -f "$existing_idx" ]; then
@@ -85,6 +84,7 @@ function gen_idx_from_template
     eval "echo -e $(escape_str < $footer_file)" >> "$output"
 }
 
+# NOTE: requires gawk installed for the following to work
 function get_description
 {
     start='sub("^.*<"s"*"t"("s"[^>]*)?>","")'
