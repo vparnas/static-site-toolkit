@@ -7,6 +7,8 @@ ifneq (,$(wildcard ./$(CFG)))
     include $(CFG)
 endif
 
+SHELL=/bin/bash # paramount for bash expanded arithmetic
+
 # The below default values are set only if absent in config
 SITE_TITLE?="My website" 
 INPUTDIR?=web
@@ -70,11 +72,22 @@ $(short_indexes): $(URL_LIST).short
 	mkdir -p $(@D)
 	$(PG) -x $< $@ $(TEMPLATE_DIR)/$(@F) "" 1
 
+# TODO: separate categorized RSSs into a separate target
+# 1. compile list and build target like like indexes
 # The RSS feed depends on $(PROD_OUT)/$(SSG_UPDATE_LIST) since the rss routine scans the production content to populate the description.
 ifdef FEED_RSS
 %/$(FEED_RSS): $(URL_LIST) $(PROD_OUT)/$(SSG_UPDATE_LIST)
 	mkdir -p $(@D)
 	$(PG) -x $< $@ $(TEMPLATE_DIR)/$(FEED_RSS)
+	CAT_RSS=$(CAT_RSS); \
+	length="$${#CAT_RSS[@]}"; \
+	for (( i = 0; i<$$length; i+=2 )); do \
+		rss_file=$(@D)/$${CAT_RSS[$$i+1]}; \
+		cat_name=$${CAT_RSS[$$i]}; \
+		template=$(shell dirname $(TEMPLATE_DIR)/$(FEED_RSS))/category.rss.xml; \
+		$(PG) -x $< $$rss_file $$template $$cat_name; \
+	done
+#	$(PG) -x $< $(@D)/creative.rss.xml $(shell dirname $(TEMPLATE_DIR)/$(FEED_RSS))/category.rss.xml Creative
 
 dev_rss: $(DEV_OUT)/$(FEED_RSS)
 prod_rss: $(PROD_OUT)/$(FEED_RSS)
